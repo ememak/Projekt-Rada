@@ -6,7 +6,7 @@ import (
   "fmt"
 
   "google.golang.org/grpc"
-  pb "Projekt-Rada/hello"
+  pb "github.com/ememak/Projekt-Rada/hello"
 )
 
 var (

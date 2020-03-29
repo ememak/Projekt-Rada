@@ -1,32 +1,32 @@
 package main
 
 import (
-  "fmt"
-  "net"
-  "context"
+	"context"
+	"fmt"
+	"net"
 
-  "google.golang.org/grpc"
-  pb "Projekt-Rada/hello"
+	pb "github.com/ememak/Projekt-Rada/hello"
+	"google.golang.org/grpc"
 )
 
 var (
-  port = ":12345"
+	port = ":12345"
 )
 
 type server struct {
-  pb.UnimplementedHelloServer
+	pb.UnimplementedHelloServer
 }
 
-func (s *server) Hello(ctx context.Context, in *pb.HelloRequest) (*pb.HelloReply, error){
-  return &pb.HelloReply{Mess: "Hello World!\n"}, nil
+func (s *server) Hello(ctx context.Context, in *pb.HelloRequest) (*pb.HelloReply, error) {
+	return &pb.HelloReply{Mess: "Hello World!\n"}, nil
 }
 
 func main() {
-  rec, err := net.Listen("tcp", port)
-  if err != nil {
-    fmt.Printf("failed to listen: %v", err)
-  }
-  s := grpc.NewServer()
-  pb.RegisterHelloServer(s, &server{})
-  s.Serve(rec)
+	rec, err := net.Listen("tcp", port)
+	if err != nil {
+		fmt.Printf("failed to listen: %v", err)
+	}
+	s := grpc.NewServer()
+	pb.RegisterHelloServer(s, &server{})
+	s.Serve(rec)
 }
