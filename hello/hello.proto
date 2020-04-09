@@ -1,11 +1,38 @@
 syntax = "proto3";
 
-package hello;
+package query;
 
-service Hello {
-  rpc Hello(HelloRequest) returns (HelloReply) {}
+service Query {
+  rpc Hello (HelloRequest) returns (HelloReply) {}
+  rpc QueryInit (stream Field) returns (PollQuestion) {}
+  rpc QueryGetToken (TokenRequest) returns (VoteToken) {}
+//  rpc QueryVote (VoteToken) returns () {}
 }
 
 message HelloRequest {}
 
-message HelloReply { string Mess = 1; }
+message HelloReply { string mess = 1; }
+
+message Field{
+  int32 which = 1; //which field we edit, -1 = new field in query
+  string name = 2; //query option
+}
+
+message PollQuestion {
+  int32 id = 1;
+
+  message QueryField {
+    string name = 1;
+    int32 votes = 2;
+  }
+
+  repeated QueryField fields = 2;
+}
+
+message TokenRequest {
+  int32 nr = 1;
+}
+
+message VoteToken {
+  int32 token = 1;
+}
