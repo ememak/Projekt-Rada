@@ -6,7 +6,7 @@ import (
 	"net"
   "io"
 
-	pb "github.com/ememak/Projekt-Rada/hello"
+	pb "github.com/ememak/Projekt-Rada/query"
 	"google.golang.org/grpc"
 )
 
@@ -18,7 +18,6 @@ type server struct {
 	pb.UnimplementedQueryServer
 
   queries []pb.PollQuestion
-  tokens []int
 }
 
 func (s *server) Hello(ctx context.Context, in *pb.HelloRequest) (*pb.HelloReply, error) {
@@ -28,11 +27,9 @@ func (s *server) Hello(ctx context.Context, in *pb.HelloRequest) (*pb.HelloReply
 func (s *server) QueryInit(stream pb.Query_QueryInitServer) error {
   var q = pb.PollQuestion{
     Id: int32(len(s.queries)),
-    Fields: []*pb.PollQuestion_QueryField{
-      },
+    Fields: []*pb.PollQuestion_QueryField{},
   }
   fmt.Printf("QueryInitReceived, id = %v\n", len(s.queries))
-  s.tokens = append(s.tokens, 0)
   for {
     field, err := stream.Recv()
     if err == io.EOF {
@@ -53,17 +50,56 @@ func (s *server) QueryInit(stream pb.Query_QueryInitServer) error {
     } else if field.Which < int32(len(q.Fields)){
       q.Fields[field.Which].Name = field.Name
     } else {
-      fmt.Printf("Wrong Field Number")
+      fmt.Printf("Wrong Query field number\n")
     }
   }
 }
 
+//for now tokens for votes dont have much informations, no crypto yet
 func (s *server) QueryGetToken(ctx context.Context, in *pb.TokenRequest) (*pb.VoteToken, error){
+  var t = pb.VoteToken{
+    Token: int32(len(s.queries[in.Nr].Tokens)+1),}
   if in.Nr < 0 || in.Nr >= int32(len(s.queries)) {
-    fmt.Printf("")
+    fmt.Printf("Wrong Query number in Get Token\n")
+    t.Token = -1
+    return &t, nil
   }
-  s.tokens[in.Nr]++
-  return &pb.VoteToken{Token: int32(s.tokens[in.Nr]-1)}, nil
+  s.queries[in.Nr].Tokens = append(s.queries[in.Nr].Tokens, &t)
+  fmt.Printf("GetToken, in Memory: %v\n", s.queries)
+  return &t, nil
+}
+
+//for now tokens for votes dont have much informations, no crypto yet
+func (s *server) QueryVote(ctx context.Context, in *pb.Vote) (*pb.VoteReply, error) {
+  if in.Nr >= int32(len(s.queries)) || in.Nr < 0 { //security leak, path that out later!
+    fmt.Printf("No such Query: %v\n", in.Nr)
+	  return &pb.VoteReply{Mess: "No such Query!\n"}, nil
+  }
+  var nT = len(s.queries[in.Nr].Tokens)
+  var nF = len(s.queries[in.Nr].Fields)
+  for i:=0; i<nT; i++ {
+    if s.queries[in.Nr].Tokens[i].Token == in.Token.Token {
+      s.queries[in.Nr].Tokens[i] = s.queries[in.Nr].Tokens[nT-1]
+      s.queries[in.Nr].Tokens[nT-1] = &pb.VoteToken{Token:0}
+      s.queries[in.Nr].Tokens = s.queries[in.Nr].Tokens[:nT-1]
+      break
+    }
+    if i == nT-1 {
+      fmt.Printf("Token not valid\n")
+	    return &pb.VoteReply{Mess: "Token not valid!\n"}, nil
+    }
+  }
+  if nF != len(in.Answer) {
+    fmt.Printf("Vote have different number of fields than query\n")
+	  return &pb.VoteReply{Mess: "Vote have different number of fields than query!\n"}, nil
+  }
+  for i:=0; i<nF; i++ {
+    if in.Answer[i] >= 1 {
+      s.queries[in.Nr].Fields[i].Votes++
+    }
+  }
+  fmt.Printf("In Memory: %v\n", s.queries)
+	return &pb.VoteReply{Mess: "Thank you for your vote!\n"}, nil
 }
 
 func main() {
