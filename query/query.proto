@@ -6,16 +6,27 @@ service Query {
   rpc Hello (HelloRequest) returns (HelloReply) {}
   rpc QueryInit (stream Field) returns (PollQuestion) {} //this will probably not return PollQuestion in the end
   rpc QueryGetToken (TokenRequest) returns (VoteToken) {}
-  rpc QueryVote (Vote) returns (VoteReply) {}
+  rpc QueryAuthorizeVote (MessageToSign) returns (SignedMessage) {}
+  rpc QueryVote (SignedVote) returns (VoteReply) {}
 }
 
 message HelloRequest {}
 
-message HelloReply { string mess = 1; }
+message HelloReply { 
+  string mess = 1;
+  bytes N = 2;
+  int32 e = 3;
+}
 
 message Field{
   int32 which = 1; //which field we edit, -1 = new field in query
   string name = 2; //query option
+}
+
+message MessageToSign{
+  bytes mess = 1;
+  int32 nr = 2;
+  VoteToken token = 3;
 }
 
 message PollQuestion {
@@ -35,11 +46,19 @@ message TokenRequest {
   int32 nr = 1;
 }
 
+message SignedMessage{
+  bytes mess = 1;
+  bytes sign = 2;
+}
+
+message SignedVote {
+  Vote vote = 1;
+  bytes sign = 2;
+}
+
 message Vote {
   int32 nr = 1; //which question
   repeated int32 answer = 2; // >=1 answer mean 'yes', for now
-
-  VoteToken token = 3;
 }
 
 message VoteReply {

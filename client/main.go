@@ -6,6 +6,10 @@ import (
   "fmt"
   "log"
   "io"
+  "crypto/rsa"
+  "crypto/rand"
+  "crypto/sha256"
+  "math/big"
 
   "google.golang.org/grpc"
   pb "github.com/ememak/Projekt-Rada/query"
@@ -15,8 +19,10 @@ var (
   addr = "localhost:12345"
 )
 
-func runQueryInit (client pb.QueryClient) {
-  ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+var key *rsa.PublicKey
+
+func runQueryInit (client pb.QueryClient, ctx context.Context) {
+  ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
   defer cancel()
   stream, err := client.QueryInit(ctx)
   if err != nil {
@@ -38,6 +44,57 @@ func runQueryInit (client pb.QueryClient) {
   log.Printf("Query: %v", reply)
 }
 
+func runHello(client pb.QueryClient, ctx context.Context){
+  r, err := client.Hello(ctx, &pb.HelloRequest{})
+  if err != nil {
+    fmt.Printf("Client got error on Hello function: %v", err)
+  }
+  key = &rsa.PublicKey{
+    N: new(big.Int).SetBytes(r.GetN()),
+    E: int(r.GetE()),
+  }
+}
+
+func runVote(client pb.QueryClient, ctx context.Context, vote pb.Vote){
+  t, err := client.QueryGetToken(ctx, &pb.TokenRequest{Nr: vote.Nr})
+  if err != nil {
+    fmt.Printf("Client got error on GetToken function: %v", err)
+  }
+  fmt.Printf("Token: %v\n", t)
+
+  var hash = sha256.Sum256([]byte(fmt.Sprintf("%v", vote)))
+  r, err := rand.Int(rand.Reader, key.N);
+  if err != nil {
+    fmt.Printf("Rand.Int error: %v", err)
+  }
+  c := new(big.Int).SetBytes(hash[:])
+  bfactor := new(big.Int).Exp(r, big.NewInt(int64(key.E)), key.N)
+  blinded := bfactor.Mod(bfactor.Mul(bfactor, c), key.N).Bytes()
+  var mts = pb.MessageToSign{
+    Mess: blinded,
+    Nr: vote.Nr,
+    Token: t,
+  }
+  sm, err := client.QueryAuthorizeVote(ctx, &mts)
+  if err != nil {
+    fmt.Printf("Client got error on QueryVote function: %v", err)
+  }
+
+  smi := new(big.Int).SetBytes(sm.Sign)
+  revr := new(big.Int).ModInverse(r, key.N)
+  smirevr := new(big.Int).Mul(revr, smi)
+  sign := new(big.Int).Mod(smirevr, key.N).Bytes()
+  var sv = pb.SignedVote{
+    Vote: &vote,
+    Sign: sign,
+  }
+  vr, err := client.QueryVote(ctx, &sv)
+  if err != nil {
+    fmt.Printf("Client got error on QueryVote function: %v", err)
+  }
+  fmt.Printf("Mess: %v\n", vr.Mess)
+}
+
 func main(){
   conn, err := grpc.Dial(addr, grpc.WithInsecure(), grpc.WithBlock())
   if err != nil {
@@ -49,40 +106,14 @@ func main(){
   ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 
   defer cancel()
-  r, err := c.Hello(ctx, &pb.HelloRequest{})
-  if err != nil {
-    fmt.Printf("Client got error on Hello function: %v", err)
-  }
 
-  fmt.Printf("Greeting: %s", r.GetMess())
+  runHello(c, ctx)
 
-  runQueryInit(c);
+  runQueryInit(c, ctx);
 
-  t0, err := c.QueryGetToken(ctx, &pb.TokenRequest{})
-  if err != nil {
-    fmt.Printf("Client got error on GetToken function: %v", err)
-  }
-  exampleVote0.Token = t0
-  fmt.Printf("Token: %v", t0)
+  runVote(c, ctx, exampleVote0)
 
-  v0, err := c.QueryVote(ctx, &exampleVote0)
-  if err != nil {
-    fmt.Printf("Client got error on QueryVote function: %v", err)
-  }
-  fmt.Printf(v0.Mess)
-
-  t1, err := c.QueryGetToken(ctx, &pb.TokenRequest{})
-  if err != nil {
-    fmt.Printf("Client got error on GetToken function: %v", err)
-  }
-  exampleVote1.Token = t1
-  fmt.Printf("Token: %v", t1)
-
-  v1, err := c.QueryVote(ctx, &exampleVote1)
-  if err != nil {
-    fmt.Printf("Client got error on QueryVote function: %v", err)
-  }
-  fmt.Printf(v1.Mess)
+  runVote(c, ctx, exampleVote1)
 }
 
 var exampleQuery = []pb.Field{
@@ -95,11 +126,9 @@ var exampleQuery = []pb.Field{
 var exampleVote0 = pb.Vote{
     Nr: 0,
     Answer: []int32{0, 1, 1},
-    Token: &pb.VoteToken{Token:-1,},
   }
 
 var exampleVote1 = pb.Vote{
     Nr: 1,
     Answer: []int32{1, 1, 0},
-    Token: &pb.VoteToken{Token:-1,},
   }
