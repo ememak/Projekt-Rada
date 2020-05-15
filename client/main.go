@@ -1,3 +1,4 @@
+// Example client for Rada system.
 package main
 
 import (
@@ -21,7 +22,7 @@ var (
 
 var key *rsa.PublicKey
 
-func runHello(client pb.QueryClient, ctx context.Context) {
+func runHello(ctx context.Context, client pb.QueryClient) {
 	r, err := client.Hello(ctx, &pb.HelloRequest{})
 	if err != nil {
 		fmt.Printf("Client got error on Hello function: %v", err)
@@ -30,9 +31,10 @@ func runHello(client pb.QueryClient, ctx context.Context) {
 		N: new(big.Int).SetBytes(r.GetN()),
 		E: int(r.GetE()),
 	}
+	fmt.Printf("%v", r.Mess)
 }
 
-func runQueryInit(client pb.QueryClient, ctx context.Context) {
+func runQueryInit(ctx context.Context, client pb.QueryClient) {
 	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 	stream, err := client.QueryInit(ctx)
@@ -55,69 +57,81 @@ func runQueryInit(client pb.QueryClient, ctx context.Context) {
 	log.Printf("Query: %v", reply)
 }
 
-//Function to get token, generate blind signature and vote using it
-func runVote(client pb.QueryClient, ctx context.Context, vote pb.Vote) {
-	//get token to vote, may be changed
+// RunVote performs all necessary measures to send valid vote.
+//
+// Input consists of client previously connected to query server
+// and vote defined in query/query.proto.
+//
+// Function have to be called after key exchange (currently Hello function).
+//
+// Inside function is getting token from server and anonymously sending vote
+// signed using RSA blind signature scheme.
+func runVote(ctx context.Context, client pb.QueryClient, vote pb.Vote) {
+	// Get token to vote, may be changed.
 	t, err := client.QueryGetToken(ctx, &pb.TokenRequest{Nr: vote.Nr})
 	if err != nil {
 		fmt.Printf("Client got error on GetToken function: %v", err)
 	}
 	fmt.Printf("Token: %v\n", t)
 
-	//generate message to be signed
+	// Generate ballot to be signed.
+	// This value will be referred as Mess.
 	mess, err := rand.Int(rand.Reader, key.N)
 	if err != nil {
 		fmt.Printf("Rand.Int error in generating message to sign: %v", err)
 	}
 	fmt.Printf("m: %v\n", mess)
-	//hash this message
-	//from now on m is this hashed message
+
+	// We are hashing ballot.
+	// From now on m will be name of this hashed message.
 	hash := sha256.Sum256(mess.Bytes())
 	m := new(big.Int).SetBytes(hash[:])
 	fmt.Printf("Hashed m: %v\n", m)
 
-	//get random blinding factor
+	// Get random blinding factor.
 	r, err := rand.Int(rand.Reader, key.N)
 	if err != nil {
 		fmt.Printf("Rand.Int error in generating blinding factor: %v", err)
 	}
 
-	//we want to send m*r^e mod N to server
-	//r^e
+	// We want to send m*r^e mod N to server.
+	// To do this we need to calculate few values
+	// bfactor = r^e mod N
 	bfactor := new(big.Int).Exp(r, big.NewInt(int64(key.E)), key.N)
-	//m*r^e mod N
+	// blinded = m*(r^e) mod N
 	blinded := bfactor.Mod(bfactor.Mul(bfactor, m), key.N)
-	//send m*r^e to server
-	//with number of query and token to it
+	// Now we can send m*(r^e) to server.
+	// We are sending it with number of query and token to it so that server could authorize our request.
 	var mts = pb.MessageToSign{
 		Mess:  blinded.Bytes(),
 		Nr:    vote.Nr,
 		Token: t,
 	}
 
-	//receive m^d*r from server
+	// Receive (m^d)*r mod N from server.
 	sm, err := client.QueryAuthorizeVote(ctx, &mts)
 	if err != nil {
 		fmt.Printf("Client got error on QueryVote function: %v", err)
 	}
 
-	//having m^d*r we are removing blinding factor r
-	//then we send vote with actual sign
-	//smi = m^d*r
+	// Having (m^d)*r mod N we are removing blinding factor r,
+	// then we send vote with actual sign which is pair (Mess, m^d mod N).
+	// To get m^d mod N we need to perform few calculations:
+	// smi = (m^d)*r mod N
 	smi := new(big.Int).SetBytes(sm.Sign)
-	//revr = r^-1 mod N
+	// revr = r^-1 mod N
 	revr := new(big.Int).ModInverse(r, key.N)
-	//smirevr = smi * revr
+	// smirevr = smi * revr
 	smirevr := new(big.Int).Mul(revr, smi)
-	//sign = smirevr mod N = m^d mod N
-	//actual sign
-	sign := new(big.Int).Mod(smirevr, key.N).Bytes()
+	// Now we can calculate second part of sign.
+	// sign = smirevr mod N = m^d mod N
+	sign := new(big.Int).Mod(smirevr, key.N)
 
-	//send vote with pair m, hash(m)^d
+	// We are sending vote with pair (Mess, m^d mod N = hash(Mess)^d mod N)
 	var sv = pb.SignedVote{
 		Vote:   &vote,
 		Signm:  mess.Bytes(),
-		Signmd: sign,
+		Signmd: sign.Bytes(),
 	}
 	vr, err := client.QueryVote(ctx, &sv)
 	if err != nil {
@@ -138,13 +152,13 @@ func main() {
 
 	defer cancel()
 
-	runHello(c, ctx)
+	runHello(ctx, c)
 
-	runQueryInit(c, ctx)
+	runQueryInit(ctx, c)
 
-	runVote(c, ctx, exampleVote0)
+	runVote(ctx, c, exampleVote0)
 
-	runVote(c, ctx, exampleVote1)
+	runVote(ctx, c, exampleVote1)
 }
 
 var exampleQuery = []pb.Field{
@@ -154,9 +168,9 @@ var exampleQuery = []pb.Field{
 	{Which: -1, Name: "Third Option"},
 }
 
-//first time launching the client first vote should pass, second not
-//second time both should pass
-//second vote is asking about query number one, which don't exist during first launch
+// First time launching the client first vote should pass, second not.
+// Second time both should pass.
+// Second vote is asking about query number one, which don't exist during first launch.
 var exampleVote0 = pb.Vote{
 	Nr:     0,
 	Answer: []int32{0, 1, 1},

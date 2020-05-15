@@ -1,3 +1,4 @@
+// Server package for Rada system.
 package main
 
 import (
@@ -11,21 +12,29 @@ import (
 	"math/big"
 	"net"
 
+	logic "github.com/ememak/Projekt-Rada/logic"
 	pb "github.com/ememak/Projekt-Rada/query"
 	"google.golang.org/grpc"
 )
 
-var (
+// In constants we store connection data.
+const (
 	port = ":12345"
 )
 
+// Server type contains server implemented in query/query.proto,
+// data used for cryptography and usage of queries.
 type server struct {
 	pb.UnimplementedQueryServer
 
+	// RSA key for signature validation
 	key     *rsa.PrivateKey
 	queries []pb.PollQuestion
 }
 
+// Hello is function used to exchange server public key.
+//
+// As an input function takes HelloRequest, which defined in query/query.proto.
 func (s *server) Hello(ctx context.Context, in *pb.HelloRequest) (*pb.HelloReply, error) {
 	return &pb.HelloReply{
 		Mess: "Hello World!\n",
@@ -34,14 +43,21 @@ func (s *server) Hello(ctx context.Context, in *pb.HelloRequest) (*pb.HelloReply
 	}, nil
 }
 
+// QueryInit generates new query.
+//
+// Questions are passed from client to server as stream of Field messages
+// defined in query.proto.
 func (s *server) QueryInit(stream pb.Query_QueryInitServer) error {
-	var q = pb.PollQuestion{
+	// Make new Query
+	q := pb.PollQuestion{
 		Id:     int32(len(s.queries)),
 		Fields: []*pb.PollQuestion_QueryField{},
 	}
 	fmt.Printf("QueryInitReceived, id = %v\n", len(s.queries))
+
 	for {
 		field, err := stream.Recv()
+		// End of stream, we are saving new query.
 		if err == io.EOF {
 			s.queries = append(s.queries, q)
 			fmt.Printf("Sending back: %v\n", q)
@@ -51,13 +67,14 @@ func (s *server) QueryInit(stream pb.Query_QueryInitServer) error {
 		if err != nil {
 			return err
 		}
+		// Edit field in query, -1 is a signal of new field.
 		if field.Which == -1 {
 			q.Fields = append(q.Fields,
 				&pb.PollQuestion_QueryField{
 					Name:  field.Name,
 					Votes: 0,
 				})
-		} else if field.Which < int32(len(q.Fields)) {
+		} else if field.Which < int32(len(q.Fields)) && field.Which >= 0 {
 			q.Fields[field.Which].Name = field.Name
 		} else {
 			fmt.Printf("Wrong Query field number\n")
@@ -65,9 +82,9 @@ func (s *server) QueryInit(stream pb.Query_QueryInitServer) error {
 	}
 }
 
+// QueryGetToken generates token used to authorize ballot.
 func (s *server) QueryGetToken(ctx context.Context, in *pb.TokenRequest) (*pb.VoteToken, error) {
-	var t = pb.VoteToken{
-		Token: -1}
+	t := pb.VoteToken{}
 	if in.Nr < 0 || in.Nr >= int32(len(s.queries)) {
 		fmt.Printf("Wrong Query number in Get Token\n")
 		return &t, nil
@@ -78,30 +95,20 @@ func (s *server) QueryGetToken(ctx context.Context, in *pb.TokenRequest) (*pb.Vo
 	return &t, nil
 }
 
+// QueryAuthorizeVote authorizes a ballot if sent with valid token.
+//
+// Function takes as input message consisting of blinded ballot and
+// token returned by function QueryGetToken if such token was not used before.
 func (s *server) QueryAuthorizeVote(ctx context.Context, in *pb.MessageToSign) (*pb.SignedMessage, error) {
-	if in.Nr >= int32(len(s.queries)) || in.Nr < 0 { //security leak, path that out later!
-		fmt.Printf("No such Query: %v\n", in.Nr)
+	// Check if token and number of query are valid.
+	ok := logic.AcceptToken(in.Token, in.Nr, s.queries)
+	if ok == false {
 		return &pb.SignedMessage{Mess: []byte{}, Sign: []byte{}}, nil
 	}
-	var nT = len(s.queries[in.Nr].Tokens)
-	if nT == 0 {
-		fmt.Printf("Token not valid\n")
-		return &pb.SignedMessage{Mess: []byte{}, Sign: []byte{}}, nil
-	}
-	for i := 0; i < nT; i++ {
-		if s.queries[in.Nr].Tokens[i].Token == in.Token.Token {
-			s.queries[in.Nr].Tokens = append(s.queries[in.Nr].Tokens[:i], s.queries[in.Nr].Tokens[i+1:]...)
-			break
-		}
-		if i == nT-1 {
-			fmt.Printf("Token not valid\n")
-			return &pb.SignedMessage{Mess: []byte{}, Sign: []byte{}}, nil
-		}
-	}
-	//calculate m^d to generate sign for client
+
+	// Calculate m^d to generate sign for client.
 	m := new(big.Int).SetBytes(in.Mess)
 	sign := m.Exp(m, s.key.D, s.key.PublicKey.N).Bytes()
-	//sign := rsa.Decrypt(rand.Reader, s.key, m).Bytes()
 	var SM = pb.SignedMessage{
 		Mess: in.Mess, //may be not necessary
 		Sign: sign,
@@ -110,13 +117,13 @@ func (s *server) QueryAuthorizeVote(ctx context.Context, in *pb.MessageToSign) (
 	return &SM, nil
 }
 
-//get signed vote from client and check it's validity
+// QueryVote get signed vote from client and check it's validity.
 func (s *server) QueryVote(ctx context.Context, in *pb.SignedVote) (*pb.VoteReply, error) {
-	//first we check if sign is valid
-	//to do this check if hash(signm) = (signmd)^e mod N
-	//if sign is correct, signmd = hash(signm)^d and equality is satisfied
+	// First we have to check if the sign is valid.
+	// To do this check if hash(signm) = (signmd)^e mod N.
+	// If sign is correct, signmd = hash(signm)^d and equality is satisfied.
 	hash := sha256.Sum256(in.Signm)
-	//calculate signmd^e mod N
+	// Calculate signmd^e mod N
 	md := new(big.Int).SetBytes(in.Signmd)
 	bhi := new(big.Int).Exp(md, big.NewInt(int64(s.key.PublicKey.E)), s.key.PublicKey.N).Bytes()
 
@@ -125,24 +132,8 @@ func (s *server) QueryVote(ctx context.Context, in *pb.SignedVote) (*pb.VoteRepl
 		return &pb.VoteReply{Mess: "Sign invalid!\n"}, nil
 	}
 
-	var v = in.Vote
-	if v.Nr >= int32(len(s.queries)) || v.Nr < 0 { //security leak, path that out later!
-		fmt.Printf("No such Query: %v\n", v.Nr)
-		return &pb.VoteReply{Mess: "No such Query!\n"}, nil
-	}
-	var nF = len(s.queries[v.Nr].Fields)
-	if nF != len(v.Answer) {
-		fmt.Printf("Vote have different number of fields than query\n")
-		return &pb.VoteReply{Mess: "Vote have different number of fields than query!\n"}, nil
-	}
-	for i := 0; i < nF; i++ {
-		if v.Answer[i] >= 1 {
-			s.queries[v.Nr].Fields[i].Votes++
-		}
-	}
-	fmt.Printf("Thank you for your vote!\n")
-	fmt.Printf("In Memory: %v\n", s.queries)
-	return &pb.VoteReply{Mess: "Thank you for your vote!\n"}, nil
+	// Vote is properly signed, we proceed to voting.
+	return logic.AcceptVote(in.Vote, s.queries)
 }
 
 func serverInit() *server {

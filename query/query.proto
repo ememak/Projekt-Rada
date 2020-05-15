@@ -57,11 +57,11 @@ message SignedMessage {
   bytes sign = 2;
 }
 
-//vote with sign
+// SignedVote is a final vote with RSA sign.
 message SignedVote {
-  Vote vote = 1;    //actual vote
-  bytes signm = 2;  //m, first part of sign
-  bytes signmd = 3; //hash(m)^d, second part of sign
+  Vote vote = 1;    // vote
+  bytes signm = 2;  // Mess, first part of sign
+  bytes signmd = 3; // hash(Mess)^d mod N, second part of sign
 }
 
 message Vote {
