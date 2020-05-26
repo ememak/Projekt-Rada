@@ -7,4 +7,6 @@ dużo dziur w stylu wielu rodzajów komunikatów zwrotnych, brak paddingu i obro
 
 zmieniony system podpisów, podpis jest parą (m, hash(m)^d) dla losowego m
 
-TODO: przechowywanie informacji
+zrobiony zaczątek bazy danych z biblioteki Bolt
+na razie wykorzystywany jedynie połowicznie
+TODO: dalsza część bazy danych

@@ -12,6 +12,7 @@ import (
 	"github.com/ememak/Projekt-Rada/bsign"
 	"github.com/ememak/Projekt-Rada/logic"
 	"github.com/ememak/Projekt-Rada/query"
+	bolt "go.etcd.io/bbolt"
 	"google.golang.org/grpc"
 )
 
@@ -27,6 +28,7 @@ type server struct {
 
 	// RSA key for signature validation
 	key     *rsa.PrivateKey
+	data    *bolt.DB
 	queries []query.PollQuestion
 }
 
@@ -47,9 +49,9 @@ func (s *server) Hello(ctx context.Context, in *query.HelloRequest) (*query.Hell
 // defined in query.proto.
 func (s *server) QueryInit(stream query.Query_QueryInitServer) error {
 	// Make new Query
-	q := query.PollQuestion{
-		Id:     int32(len(s.queries)),
-		Fields: []*query.PollQuestion_QueryField{},
+	id, err := logic.NewQuery(s.data)
+	if err != nil {
+		fmt.Printf("failed to create new query in database: %v", err)
 	}
 	fmt.Printf("QueryInitReceived, id = %v\n", len(s.queries))
 
@@ -57,6 +59,8 @@ func (s *server) QueryInit(stream query.Query_QueryInitServer) error {
 		field, err := stream.Recv()
 		// End of stream, we are saving new query.
 		if err == io.EOF {
+			q := logic.GetQuery(s.data, id)
+			// If everything will be stored in database, this is deprecated.
 			s.queries = append(s.queries, q)
 			fmt.Printf("Sending back: %v\n", q)
 			fmt.Printf("In Memory: %v\n", s.queries)
@@ -65,18 +69,7 @@ func (s *server) QueryInit(stream query.Query_QueryInitServer) error {
 		if err != nil {
 			return err
 		}
-		// Edit field in query, -1 is a signal of new field.
-		if field.Which == -1 {
-			q.Fields = append(q.Fields,
-				&query.PollQuestion_QueryField{
-					Name:  field.Name,
-					Votes: 0,
-				})
-		} else if field.Which < int32(len(q.Fields)) && field.Which >= 0 {
-			q.Fields[field.Which].Name = field.Name
-		} else {
-			fmt.Printf("Wrong Query field number\n")
-		}
+		err = logic.ModifyQueryField(s.data, id, field.Which, field.Name)
 	}
 }
 
@@ -117,7 +110,7 @@ func (s *server) QueryAuthorizeVote(ctx context.Context, in *query.MessageToSign
 // QueryVote get signed vote from client and check it's validity.
 func (s *server) QueryVote(ctx context.Context, in *query.SignedVote) (*query.VoteReply, error) {
 	// We have to check if the sign is valid.
-	if !bsign.Verify(&s.key.PublicKey, in.Signm, in.Signmd) { //check if sign is ok
+	if bsign.Verify(&s.key.PublicKey, in.Signm, in.Signmd) == false {
 		fmt.Printf("Sign invalid!\n")
 		return &query.VoteReply{Mess: "Sign invalid!\n"}, nil
 	}
@@ -129,9 +122,24 @@ func (s *server) QueryVote(ctx context.Context, in *query.SignedVote) (*query.Vo
 func serverInit() *server {
 	var err error
 	s := &server{}
-	s.key, err = rsa.GenerateKey(rand.Reader, 2048)
+
+	s.data, err = logic.DBInit("data.db")
 	if err != nil {
-		fmt.Printf("failed to generate key: %v", err)
+		fmt.Printf("failed to initialise database: %v", err)
+	}
+
+	key := logic.GetKey(s.data)
+	if key != nil {
+		s.key = key
+	} else {
+		s.key, err = rsa.GenerateKey(rand.Reader, 2048)
+		if err != nil {
+			fmt.Printf("failed to generate key: %v", err)
+		}
+		err = logic.SaveKey(s.data, s.key)
+		if err != nil {
+			fmt.Printf("failed to save key in database: %v", err)
+		}
 	}
 	s.key.Precompute()
 	return s
@@ -142,7 +150,11 @@ func main() {
 	if err != nil {
 		fmt.Printf("failed to listen: %v", err)
 	}
+
 	s := grpc.NewServer()
-	query.RegisterQueryServer(s, serverInit())
+	service := serverInit()
+	query.RegisterQueryServer(s, service)
+
+	defer service.data.Close()
 	s.Serve(rec)
 }

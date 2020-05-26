@@ -47,11 +47,10 @@ func AcceptVote(v *pb.Vote, data []pb.PollQuestion) (*pb.VoteReply, error) {
 		fmt.Printf("Vote have different number of fields than query\n")
 		return &pb.VoteReply{Mess: "Vote have different number of fields than query!\n"}, nil
 	}
-	for i := 0; i < nF; i++ {
-		if v.Answer[i] >= 1 {
-			data[v.Nr].Fields[i].Votes++
-		}
+	sv := pb.PollQuestion_StoredVote{
+		Answer: v.Answer,
 	}
+	data[v.Nr].Votes = append(data[v.Nr].Votes, &sv)
 	fmt.Printf("Thank you for your vote!\n")
 	fmt.Printf("In Memory: %v\n", data)
 	return &pb.VoteReply{Mess: "Thank you for your vote!\n"}, nil

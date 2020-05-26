@@ -2,8 +2,14 @@ load("@io_bazel_rules_go//go:def.bzl", "go_library")
 
 go_library(
     name = "go_default_library",
-    srcs = ["logic.go"],
+    srcs = [
+        "db.go",
+        "logic.go",
+    ],
     importpath = "github.com/ememak/Projekt-Rada/logic",
     visibility = ["//visibility:public"],
-    deps = ["//query:go_default_library"],
+    deps = [
+        "//query:go_default_library",
+        "@io_etcd_go_bbolt//:go_default_library",
+    ],
 )

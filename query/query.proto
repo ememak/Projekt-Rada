@@ -26,7 +26,7 @@ message HelloReply {
 
 message Field {
   int32 which = 1;  // which field we edit, -1 = new field in query
-  string name = 2;  // query option
+  string name = 2;  // query option name
 }
 
 message MessageToSign {
@@ -40,12 +40,17 @@ message PollQuestion {
 
   message QueryField {
     string name = 1;
-    int32 votes = 2;
+  }
+
+  message StoredVote {
+    repeated int32 answer = 1;
   }
 
   repeated QueryField fields = 2;
 
   repeated VoteToken tokens = 3;
+
+  repeated StoredVote votes = 4;
 }
 
 message TokenRequest {
@@ -59,9 +64,9 @@ message SignedMessage {
 
 // SignedVote is a final vote with RSA sign.
 message SignedVote {
-  Vote vote = 1;    // vote
-  bytes signm = 2;  // Mess, first part of sign
-  bytes signmd = 3; // hash(Mess)^d mod N, second part of sign
+  Vote vote = 1;     // vote
+  bytes signm = 2;   // Mess, first part of sign
+  bytes signmd = 3;  // hash(Mess)^d mod N, second part of sign
 }
 
 message Vote {
