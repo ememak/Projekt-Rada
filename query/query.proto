@@ -19,9 +19,8 @@ message HelloRequest {
 }
 
 message HelloReply {
-  string mess = 1;
-  bytes N = 2;
-  int32 e = 3;
+  string mess = 1; // Initial hello message. Not important.
+  bytes Key = 2;  // Public Key stored in PKCS1 format.
 }
 
 message Field {
@@ -79,5 +78,5 @@ message VoteReply {
 }
 
 message VoteToken {
-  int32 token = 1;
+  bytes token = 1;
 }

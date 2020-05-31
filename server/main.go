@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/rand"
 	"crypto/rsa"
+	"crypto/x509"
 	"fmt"
 	"io"
 	"net"
@@ -27,9 +28,8 @@ type server struct {
 	query.UnimplementedQueryServer
 
 	// RSA key for signature validation
-	key     *rsa.PrivateKey
-	data    *bolt.DB
-	queries []query.PollQuestion
+	key  *rsa.PrivateKey
+	data *bolt.DB
 }
 
 // Hello is function used to exchange server public key.
@@ -38,8 +38,7 @@ type server struct {
 func (s *server) Hello(ctx context.Context, in *query.HelloRequest) (*query.HelloReply, error) {
 	return &query.HelloReply{
 		Mess: "Hello World!\n",
-		N:    s.key.PublicKey.N.Bytes(),
-		E:    int32(s.key.PublicKey.E),
+		Key:  x509.MarshalPKCS1PublicKey(&s.key.PublicKey),
 	}, nil
 }
 
@@ -53,17 +52,14 @@ func (s *server) QueryInit(stream query.Query_QueryInitServer) error {
 	if err != nil {
 		fmt.Printf("failed to create new query in database: %v", err)
 	}
-	fmt.Printf("QueryInitReceived, id = %v\n", len(s.queries))
+	fmt.Printf("QueryInitReceived, id = %v\n", id)
 
 	for {
 		field, err := stream.Recv()
 		// End of stream, we are saving new query.
 		if err == io.EOF {
 			q := logic.GetQuery(s.data, id)
-			// If everything will be stored in database, this is deprecated.
-			s.queries = append(s.queries, q)
 			fmt.Printf("Sending back: %v\n", q)
-			fmt.Printf("In Memory: %v\n", s.queries)
 			return stream.SendAndClose(&q)
 		}
 		if err != nil {
@@ -75,15 +71,7 @@ func (s *server) QueryInit(stream query.Query_QueryInitServer) error {
 
 // QueryGetToken generates token used to authorize ballot.
 func (s *server) QueryGetToken(ctx context.Context, in *query.TokenRequest) (*query.VoteToken, error) {
-	t := query.VoteToken{}
-	if in.Nr < 0 || in.Nr >= int32(len(s.queries)) {
-		fmt.Printf("Wrong Query number in Get Token\n")
-		return &t, nil
-	}
-	t.Token = int32(len(s.queries[in.Nr].Tokens) + 1)
-	s.queries[in.Nr].Tokens = append(s.queries[in.Nr].Tokens, &t)
-	fmt.Printf("GetToken, in Memory: %v\n", s.queries)
-	return &t, nil
+	return logic.NewToken(s.data, in)
 }
 
 // QueryAuthorizeVote authorizes a ballot if sent with valid token.
@@ -92,7 +80,7 @@ func (s *server) QueryGetToken(ctx context.Context, in *query.TokenRequest) (*qu
 // token returned by function QueryGetToken if such token was not used before.
 func (s *server) QueryAuthorizeVote(ctx context.Context, in *query.MessageToSign) (*query.SignedMessage, error) {
 	// Check if token and number of query are valid.
-	ok := logic.AcceptToken(in.Token, in.Nr, s.queries)
+	ok, _ := logic.AcceptToken(s.data, in.Token, in.Nr)
 	if ok == false {
 		return &query.SignedMessage{}, nil
 	}
@@ -116,7 +104,12 @@ func (s *server) QueryVote(ctx context.Context, in *query.SignedVote) (*query.Vo
 	}
 
 	// Vote is properly signed, we proceed to voting.
-	return logic.AcceptVote(in.Vote, s.queries)
+	vr, err := logic.AcceptVote(s.data, in.Vote)
+	if err != nil {
+		fmt.Printf("Error in database: %v\n", err)
+	}
+	fmt.Printf("In Memory: %v\n", logic.GetQuery(s.data, int(in.Vote.Nr)))
+	return vr, nil
 }
 
 func serverInit() *server {

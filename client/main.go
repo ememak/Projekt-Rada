@@ -6,6 +6,7 @@ import (
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/sha256"
+	"crypto/x509"
 	"fmt"
 	"io"
 	"log"
@@ -27,9 +28,9 @@ func runHello(ctx context.Context, client pb.QueryClient) {
 	if err != nil {
 		fmt.Printf("Client got error on Hello function: %v", err)
 	}
-	key = &rsa.PublicKey{
-		N: new(big.Int).SetBytes(r.GetN()),
-		E: int(r.GetE()),
+	key, err = x509.ParsePKCS1PublicKey(r.Key)
+	if err != nil {
+		fmt.Printf("Error in parsing key: %v", err)
 	}
 	fmt.Printf("%v", r.Mess)
 }
@@ -172,11 +173,11 @@ var exampleQuery = []pb.Field{
 // Second time both should pass.
 // Second vote is asking about query number one, which don't exist during first launch.
 var exampleVote0 = pb.Vote{
-	Nr:     0,
+	Nr:     1,
 	Answer: []int32{0, 1, 1},
 }
 
 var exampleVote1 = pb.Vote{
-	Nr:     1,
+	Nr:     2,
 	Answer: []int32{1, 1, 0},
 }
