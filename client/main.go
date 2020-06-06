@@ -13,7 +13,7 @@ import (
 	"math/big"
 	"time"
 
-	pb "github.com/ememak/Projekt-Rada/query"
+	query "github.com/ememak/Projekt-Rada/query"
 	"google.golang.org/grpc"
 )
 
@@ -21,21 +21,19 @@ var (
 	addr = "localhost:12345"
 )
 
-var key *rsa.PublicKey
-
-func runHello(ctx context.Context, client pb.QueryClient) {
-	r, err := client.Hello(ctx, &pb.HelloRequest{})
+func runKeyExchange(ctx context.Context, client query.QueryClient, queryid int32) *rsa.PublicKey {
+	r, err := client.KeyExchange(ctx, &query.KeyRequest{Nr: queryid})
 	if err != nil {
-		fmt.Printf("Client got error on Hello function: %v", err)
+		fmt.Printf("Client got error on KeyExchange function: %v\n", err)
 	}
-	key, err = x509.ParsePKCS1PublicKey(r.Key)
+	key, err := x509.ParsePKCS1PublicKey(r.Key)
 	if err != nil {
-		fmt.Printf("Error in parsing key: %v", err)
+		fmt.Printf("Error in parsing key: %v\n", err)
 	}
-	fmt.Printf("%v", r.Mess)
+	return key
 }
 
-func runQueryInit(ctx context.Context, client pb.QueryClient) {
+func runQueryInit(ctx context.Context, client query.QueryClient) {
 	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 	stream, err := client.QueryInit(ctx)
@@ -63,13 +61,19 @@ func runQueryInit(ctx context.Context, client pb.QueryClient) {
 // Input consists of client previously connected to query server
 // and vote defined in query/query.proto.
 //
-// Function have to be called after key exchange (currently Hello function).
+// Function have to be called after key exchange.
 //
 // Inside function is getting token from server and anonymously sending vote
 // signed using RSA blind signature scheme.
-func runVote(ctx context.Context, client pb.QueryClient, vote pb.Vote) {
+func runVote(ctx context.Context, client query.QueryClient, vote query.Vote) {
+	key := runKeyExchange(ctx, client, vote.Nr)
+	if key == nil {
+		fmt.Printf("Failed to exchange keys\n")
+		return
+	}
+
 	// Get token to vote, may be changed.
-	t, err := client.QueryGetToken(ctx, &pb.TokenRequest{Nr: vote.Nr})
+	t, err := client.QueryGetToken(ctx, &query.TokenRequest{Nr: vote.Nr})
 	if err != nil {
 		fmt.Printf("Client got error on GetToken function: %v", err)
 	}
@@ -103,7 +107,7 @@ func runVote(ctx context.Context, client pb.QueryClient, vote pb.Vote) {
 	blinded := bfactor.Mod(bfactor.Mul(bfactor, m), key.N)
 	// Now we can send m*(r^e) to server.
 	// We are sending it with number of query and token to it so that server could authorize our request.
-	var mts = pb.MessageToSign{
+	var mts = query.MessageToSign{
 		Mess:  blinded.Bytes(),
 		Nr:    vote.Nr,
 		Token: t,
@@ -129,7 +133,7 @@ func runVote(ctx context.Context, client pb.QueryClient, vote pb.Vote) {
 	sign := new(big.Int).Mod(smirevr, key.N)
 
 	// We are sending vote with pair (Mess, m^d mod N = hash(Mess)^d mod N)
-	var sv = pb.SignedVote{
+	var sv = query.SignedVote{
 		Vote:   &vote,
 		Signm:  mess.Bytes(),
 		Signmd: sign.Bytes(),
@@ -147,13 +151,11 @@ func main() {
 		log.Fatalf("grpc.Dial got error %v", err)
 	}
 	defer conn.Close()
-	c := pb.NewQueryClient(conn)
+	c := query.NewQueryClient(conn)
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 
 	defer cancel()
-
-	runHello(ctx, c)
 
 	runQueryInit(ctx, c)
 
@@ -162,22 +164,22 @@ func main() {
 	runVote(ctx, c, exampleVote1)
 }
 
-var exampleQuery = []pb.Field{
+var exampleQuery = []query.Field{
 	{Which: -1, Name: "First Option"},
 	{Which: -1, Name: "Second Option"},
-	{Which: 0, Name: "Edit First Option"},
+	{Which: 1, Name: "Edit First Option"},
 	{Which: -1, Name: "Third Option"},
 }
 
 // First time launching the client first vote should pass, second not.
 // Second time both should pass.
 // Second vote is asking about query number one, which don't exist during first launch.
-var exampleVote0 = pb.Vote{
+var exampleVote0 = query.Vote{
 	Nr:     1,
 	Answer: []int32{0, 1, 1},
 }
 
-var exampleVote1 = pb.Vote{
+var exampleVote1 = query.Vote{
 	Nr:     2,
 	Answer: []int32{1, 1, 0},
 }

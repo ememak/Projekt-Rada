@@ -11,8 +11,8 @@ import (
 	"net"
 
 	"github.com/ememak/Projekt-Rada/bsign"
-	"github.com/ememak/Projekt-Rada/logic"
 	"github.com/ememak/Projekt-Rada/query"
+	"github.com/ememak/Projekt-Rada/store"
 	bolt "go.etcd.io/bbolt"
 	"google.golang.org/grpc"
 )
@@ -27,18 +27,22 @@ const (
 type server struct {
 	query.UnimplementedQueryServer
 
-	// RSA key for signature validation
-	key  *rsa.PrivateKey
 	data *bolt.DB
 }
 
-// Hello is function used to exchange server public key.
+// KeyExchange is function used to exchange server public key for specific poll.
 //
-// As an input function takes HelloRequest, which defined in query/query.proto.
-func (s *server) Hello(ctx context.Context, in *query.HelloRequest) (*query.HelloReply, error) {
-	return &query.HelloReply{
-		Mess: "Hello World!\n",
-		Key:  x509.MarshalPKCS1PublicKey(&s.key.PublicKey),
+// As an input function takes KeyRequest, which contains number of query.
+// If key is not in database (e.g. requested nonexisting query), reply contains empty byte array.
+func (s *server) KeyExchange(ctx context.Context, in *query.KeyRequest) (*query.KeyReply, error) {
+	key := store.GetKey(s.data, int(in.Nr))
+	var binkey []byte
+	if key != nil {
+		binkey = x509.MarshalPKCS1PublicKey(&key.PublicKey)
+	}
+
+	return &query.KeyReply{
+		Key: binkey,
 	}, nil
 }
 
@@ -48,30 +52,40 @@ func (s *server) Hello(ctx context.Context, in *query.HelloRequest) (*query.Hell
 // defined in query.proto.
 func (s *server) QueryInit(stream query.Query_QueryInitServer) error {
 	// Make new Query
-	id, err := logic.NewQuery(s.data)
+	id, err := store.NewQuery(s.data)
 	if err != nil {
 		fmt.Printf("failed to create new query in database: %v", err)
 	}
+
+	key, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		fmt.Printf("failed to generate key: %v", err)
+	}
+	err = store.SaveKey(s.data, id, key)
+	if err != nil {
+		fmt.Printf("failed to save key in database: %v", err)
+	}
+
 	fmt.Printf("QueryInitReceived, id = %v\n", id)
 
 	for {
 		field, err := stream.Recv()
 		// End of stream, we are saving new query.
 		if err == io.EOF {
-			q := logic.GetQuery(s.data, id)
+			q := store.GetQuery(s.data, id)
 			fmt.Printf("Sending back: %v\n", q)
 			return stream.SendAndClose(&q)
 		}
 		if err != nil {
 			return err
 		}
-		err = logic.ModifyQueryField(s.data, id, field.Which, field.Name)
+		err = store.ModifyQueryField(s.data, id, field.Which, field.Name)
 	}
 }
 
 // QueryGetToken generates token used to authorize ballot.
 func (s *server) QueryGetToken(ctx context.Context, in *query.TokenRequest) (*query.VoteToken, error) {
-	return logic.NewToken(s.data, in)
+	return store.NewToken(s.data, in)
 }
 
 // QueryAuthorizeVote authorizes a ballot if sent with valid token.
@@ -80,13 +94,13 @@ func (s *server) QueryGetToken(ctx context.Context, in *query.TokenRequest) (*qu
 // token returned by function QueryGetToken if such token was not used before.
 func (s *server) QueryAuthorizeVote(ctx context.Context, in *query.MessageToSign) (*query.SignedMessage, error) {
 	// Check if token and number of query are valid.
-	ok, _ := logic.AcceptToken(s.data, in.Token, in.Nr)
+	ok, _ := store.AcceptToken(s.data, in.Token, in.Nr)
 	if ok == false {
 		return &query.SignedMessage{}, nil
 	}
 
 	// Server is signing authorized message.
-	sign := bsign.Sign(s.key, in.Mess)
+	sign := bsign.Sign(store.GetKey(s.data, int(in.Nr)), in.Mess)
 	SM := query.SignedMessage{
 		Mess: in.Mess, //may be not necessary
 		Sign: sign.Bytes(),
@@ -98,17 +112,17 @@ func (s *server) QueryAuthorizeVote(ctx context.Context, in *query.MessageToSign
 // QueryVote get signed vote from client and check it's validity.
 func (s *server) QueryVote(ctx context.Context, in *query.SignedVote) (*query.VoteReply, error) {
 	// We have to check if the sign is valid.
-	if bsign.Verify(&s.key.PublicKey, in.Signm, in.Signmd) == false {
+	if bsign.Verify(&store.GetKey(s.data, int(in.Vote.Nr)).PublicKey, in.Signm, in.Signmd) == false {
 		fmt.Printf("Sign invalid!\n")
 		return &query.VoteReply{Mess: "Sign invalid!\n"}, nil
 	}
 
 	// Vote is properly signed, we proceed to voting.
-	vr, err := logic.AcceptVote(s.data, in.Vote)
+	vr, err := store.AcceptVote(s.data, in.Vote)
 	if err != nil {
 		fmt.Printf("Error in database: %v\n", err)
 	}
-	fmt.Printf("In Memory: %v\n", logic.GetQuery(s.data, int(in.Vote.Nr)))
+	fmt.Printf("In Memory: %v\n", store.GetQuery(s.data, int(in.Vote.Nr)))
 	return vr, nil
 }
 
@@ -116,25 +130,10 @@ func serverInit() *server {
 	var err error
 	s := &server{}
 
-	s.data, err = logic.DBInit("data.db")
+	s.data, err = store.DBInit("data.db")
 	if err != nil {
 		fmt.Printf("failed to initialise database: %v", err)
 	}
-
-	key := logic.GetKey(s.data)
-	if key != nil {
-		s.key = key
-	} else {
-		s.key, err = rsa.GenerateKey(rand.Reader, 2048)
-		if err != nil {
-			fmt.Printf("failed to generate key: %v", err)
-		}
-		err = logic.SaveKey(s.data, s.key)
-		if err != nil {
-			fmt.Printf("failed to save key in database: %v", err)
-		}
-	}
-	s.key.Precompute()
 	return s
 }
 
@@ -146,8 +145,8 @@ func main() {
 
 	s := grpc.NewServer()
 	service := serverInit()
+	defer service.data.Close()
 	query.RegisterQueryServer(s, service)
 
-	defer service.data.Close()
 	s.Serve(rec)
 }

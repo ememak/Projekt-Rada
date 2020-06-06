@@ -1,4 +1,18 @@
-package logic
+// Package for database management.
+package store
+
+// Database structure:
+// KeyBucket
+// -> (keyid, key)					Key for query number id in PKCS1 format.
+// QueriesBucket
+// -> id										Bucket for query number id.
+// -> -> FieldsBucket
+// -> -> -> (id, name)
+// -> -> TokensBucket
+// -> -> -> (token, '\x01')	Token is sha256 hash, second value shouldn't be empty.
+// -> -> VotesBucket
+// -> -> -> Voteid					Id is vote number.
+// -> -> -> -> (id, answer)	Id is number of field.
 
 import (
 	"crypto/rand"
@@ -32,17 +46,17 @@ func DBInit(filename string) (*bolt.DB, error) {
 	return db, err
 }
 
-// GetKey reads key and from database.
+// GetKey reads key for specific query from database.
 //
-// Key should be stored in bucket KeyBucket with label key.
-// If key is not in database, nil is returned.
+// Key should be stored in bucket KeyBucket with label keyid, where id is number of query.
+// If keyid is not in database, nil is returned.
 // Key is stored in PKCS1 format.
-func GetKey(db *bolt.DB) *rsa.PrivateKey {
+func GetKey(db *bolt.DB, queryid int) *rsa.PrivateKey {
 	var bkeycpy []byte
 	// Database db should be open before this call.
 	err := db.View(func(tx *bolt.Tx) error {
 		kbuck := tx.Bucket([]byte("KeyBucket"))
-		bkey := kbuck.Get([]byte("key"))
+		bkey := kbuck.Get([]byte("key" + strconv.Itoa(queryid)))
 		bkeycpy = make([]byte, len(bkey))
 		copy(bkeycpy, bkey)
 		return nil
@@ -60,14 +74,15 @@ func GetKey(db *bolt.DB) *rsa.PrivateKey {
 	return key
 }
 
-// SaveKey saves server key to database.
+// SaveKey saves query key to database.
 //
+// Key is saved in bucket KeyBucket with label keyid, where id is number of query.
 // Key is stored in PKCS1 format.
-func SaveKey(db *bolt.DB, key *rsa.PrivateKey) error {
+func SaveKey(db *bolt.DB, queryid int, key *rsa.PrivateKey) error {
 	bkey := x509.MarshalPKCS1PrivateKey(key)
 	return db.Update(func(tx *bolt.Tx) error {
 		keybuck := tx.Bucket([]byte("KeyBucket"))
-		return keybuck.Put([]byte("key"), bkey)
+		return keybuck.Put([]byte("key"+strconv.Itoa(queryid)), bkey)
 	})
 }
 
