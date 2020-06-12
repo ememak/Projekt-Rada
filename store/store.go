@@ -1,18 +1,37 @@
 // Package for database management.
-package store
-
+//
 // Database structure:
-// KeyBucket
-// -> (keyid, key)					Key for query number id in PKCS1 format.
-// QueriesBucket
-// -> id										Bucket for query number id.
-// -> -> FieldsBucket
-// -> -> -> (id, name)
-// -> -> TokensBucket
-// -> -> -> (token, '\x01')	Token is sha256 hash, second value shouldn't be empty.
-// -> -> VotesBucket
-// -> -> -> Voteid					Id is vote number.
-// -> -> -> -> (id, answer)	Id is number of field.
+// KeysBucket is storing keys for queries.
+// Each key is stored in pair (keyid, key), where id is number of query
+// and key is PKCS1 encoding of key.
+// * KeysBucket
+//   - (keyid, key)
+//
+// QueriesBucket is storing data of queries: fields, tokens and votes.
+// * QueriesBucket
+//
+//	 Each query is stored in separate bucket.
+//	 Id in name is its number (starting with 1!).
+//   - QueryidBucket
+//
+//		 FieldsBucket stores query options represented as pair with its number and name (string).
+// 		 + FieldsBucket
+// 				- (id, name)
+//
+//		 TokensBucket is storing tokens to query.
+//		 Each is stored as its value as key and empty value.
+// 		 + TokensBucket
+// 				- (token, _)
+//
+// 		 VotesBucket stores votes for query.
+//		 + VotesBucket
+//
+//			  Each vote is stored in a bucket named after ballot used to sign it.
+//				Answer to each field is pair consisting this field number and a number (actual answer).
+// 				- Ballot
+// 					* (id, answer)
+// Each number value is stored as its decimal representation.
+package store
 
 import (
 	"crypto/rand"
@@ -97,7 +116,7 @@ func NewQuery(db *bolt.DB) (qid int, err error) {
 		qid = int(id)
 
 		// Each query is contained in bucket named by its number.
-		qbuck, err := queriesbuck.CreateBucketIfNotExists([]byte(strconv.Itoa(int(id))))
+		qbuck, err := queriesbuck.CreateBucketIfNotExists([]byte("Query" + strconv.Itoa(int(id)) + "Bucket"))
 		if err != nil {
 			return err
 		}
@@ -129,7 +148,7 @@ func ModifyQueryField(db *bolt.DB, queryid int, fieldid int32, name string) erro
 		queriesbuck := tx.Bucket([]byte("QueriesBucket"))
 
 		// Each query have its own bucket inside QueriesBucket.
-		qbuck := queriesbuck.Bucket([]byte(strconv.Itoa(queryid)))
+		qbuck := queriesbuck.Bucket([]byte("Query" + strconv.Itoa(queryid) + "Bucket"))
 		if qbuck == nil {
 			fmt.Printf("Wrong Query number: %v", queryid)
 			return nil
@@ -163,7 +182,7 @@ func GetQuery(db *bolt.DB, id int) query.PollQuestion {
 	err := db.View(func(tx *bolt.Tx) error {
 		queriesbuck := tx.Bucket([]byte("QueriesBucket"))
 
-		qbuck := queriesbuck.Bucket([]byte(strconv.Itoa(id)))
+		qbuck := queriesbuck.Bucket([]byte("Query" + strconv.Itoa(id) + "Bucket"))
 		if qbuck == nil {
 			fmt.Printf("Wrong Query number: %v", id)
 			return nil
@@ -178,7 +197,7 @@ func GetQuery(db *bolt.DB, id int) query.PollQuestion {
 			q.Fields = append(q.Fields, &f)
 		}
 
-		// Tokens are stored as pairs (token, '\x01'), where token is sha256 hash of a random int.
+		// Tokens are stored as pairs (token, _), where token is sha256 hash of a random int.
 		tbuck := qbuck.Bucket([]byte("TokensBucket"))
 		c = tbuck.Cursor()
 		for k, _ := c.First(); k != nil; k, _ = c.Next() {
@@ -193,7 +212,6 @@ func GetQuery(db *bolt.DB, id int) query.PollQuestion {
 
 		c = vbuck.Cursor()
 		for k, _ := c.First(); k != nil; k, _ = c.Next() {
-			//ansbuck := vbuck.Bucket(append([]byte("Vote" + string(k))))
 			ansbuck := vbuck.Bucket(k)
 			vt := query.PollQuestion_StoredVote{}
 
@@ -212,7 +230,6 @@ func GetQuery(db *bolt.DB, id int) query.PollQuestion {
 	if err != nil {
 		fmt.Printf("Failed to read from database in GetQuery: %v", err)
 	}
-
 	return q
 }
 
@@ -222,7 +239,7 @@ func NewToken(db *bolt.DB, in *query.TokenRequest) (*query.VoteToken, error) {
 	err := db.Update(func(tx *bolt.Tx) error {
 		queriesbuck := tx.Bucket([]byte("QueriesBucket"))
 
-		qbuck := queriesbuck.Bucket([]byte(strconv.Itoa(int(in.Nr))))
+		qbuck := queriesbuck.Bucket([]byte("Query" + strconv.Itoa(int(in.Nr)) + "Bucket"))
 		if qbuck == nil {
 			fmt.Printf("Wrong Query number in NewToken: %v\n", in.Nr)
 			return nil
@@ -238,7 +255,7 @@ func NewToken(db *bolt.DB, in *query.TokenRequest) (*query.VoteToken, error) {
 		}
 		token := sha256.Sum256(val.Bytes())
 
-		err = tbuck.Put(token[:], []byte("\x01"))
+		err = tbuck.Put(token[:], []byte{})
 		if err != nil {
 			return err
 		}
@@ -257,7 +274,7 @@ func AcceptToken(db *bolt.DB, token *query.VoteToken, queryid int32) (res bool, 
 	err = db.Update(func(tx *bolt.Tx) error {
 		queriesbuck := tx.Bucket([]byte("QueriesBucket"))
 
-		qbuck := queriesbuck.Bucket([]byte(strconv.Itoa(int(queryid))))
+		qbuck := queriesbuck.Bucket([]byte("Query" + strconv.Itoa(int(queryid)) + "Bucket"))
 
 		// Check if query of number queryid exists.
 		if qbuck == nil {
@@ -269,7 +286,7 @@ func AcceptToken(db *bolt.DB, token *query.VoteToken, queryid int32) (res bool, 
 
 		// We check if requested token exists. If so, v will have one element, else 0.
 		v := tbuck.Get(token.Token)
-		if len(v) > 0 {
+		if v != nil {
 			res = true
 			// After use we remove token from database.
 			tbuck.Delete(token.Token)
@@ -283,18 +300,18 @@ func AcceptToken(db *bolt.DB, token *query.VoteToken, queryid int32) (res bool, 
 }
 
 // AcceptVote is saving properly signed vote to database.
-func AcceptVote(db *bolt.DB, v *query.Vote) (vr *query.VoteReply, err error) {
+func AcceptVote(db *bolt.DB, sv *query.SignedVote) (vr *query.VoteReply, err error) {
 	vr = &query.VoteReply{}
+	v := sv.Vote
 	err = db.Update(func(tx *bolt.Tx) error {
 		queriesbuck := tx.Bucket([]byte("QueriesBucket"))
 
-		qbuck := queriesbuck.Bucket([]byte(strconv.Itoa(int(v.Nr))))
+		qbuck := queriesbuck.Bucket([]byte("Query" + strconv.Itoa(int(v.Nr)) + "Bucket"))
 
 		// Check if query of number v.Nr exists.
 		if qbuck == nil {
-			fmt.Printf("No such query: %v\n", v.Nr)
 			vr.Mess = "Vote error"
-			return nil
+			return fmt.Errorf("No such query: %v\n", v.Nr)
 		}
 		vbuck := qbuck.Bucket([]byte("VotesBucket"))
 		fbuck := qbuck.Bucket([]byte("FieldsBucket"))
@@ -312,9 +329,9 @@ func AcceptVote(db *bolt.DB, v *query.Vote) (vr *query.VoteReply, err error) {
 			return nil
 		}
 
-		// Save vote. Vote is stored as a bucket. Name of this bucket is Vote+nr.
-		id, _ := vbuck.NextSequence()
-		newvbuck, errins := vbuck.CreateBucket([]byte("Vote" + strconv.Itoa(int(id))))
+		// Save vote. Vote is stored as a bucket.
+		// Name of this bucket is ballot used for signing it.
+		newvbuck, errins := vbuck.CreateBucket(sv.Signm)
 
 		if errins != nil {
 			fmt.Printf("Failed to create bucket\n")

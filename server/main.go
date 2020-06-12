@@ -118,9 +118,10 @@ func (s *server) QueryVote(ctx context.Context, in *query.SignedVote) (*query.Vo
 	}
 
 	// Vote is properly signed, we proceed to voting.
-	vr, err := store.AcceptVote(s.data, in.Vote)
+	vr, err := store.AcceptVote(s.data, in)
 	if err != nil {
-		fmt.Printf("Error in database: %v\n", err)
+		err = fmt.Errorf("Error in database during voting: %w\n", err)
+		return vr, err
 	}
 	fmt.Printf("In Memory: %v\n", store.GetQuery(s.data, int(in.Vote.Nr)))
 	return vr, nil

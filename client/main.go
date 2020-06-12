@@ -133,7 +133,7 @@ func runVote(ctx context.Context, client query.QueryClient, vote query.Vote) {
 	sign := new(big.Int).Mod(smirevr, key.N)
 
 	// We are sending vote with pair (Mess, m^d mod N = hash(Mess)^d mod N)
-	var sv = query.SignedVote{
+	sv := query.SignedVote{
 		Vote:   &vote,
 		Signm:  mess.Bytes(),
 		Signmd: sign.Bytes(),
@@ -141,6 +141,7 @@ func runVote(ctx context.Context, client query.QueryClient, vote query.Vote) {
 	vr, err := client.QueryVote(ctx, &sv)
 	if err != nil {
 		fmt.Printf("Client got error on QueryVote function: %v", err)
+		return
 	}
 	fmt.Printf("Mess: %v\n", vr.Mess)
 }
