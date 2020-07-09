@@ -6,7 +6,7 @@ service Query {
   rpc KeyExchange(KeyRequest) returns (KeyReply) {
   }
   rpc QueryInit(stream Field) returns (PollQuestion) {
-  }  // this will probably not return PollQuestion in the end
+  }
   rpc QueryGetToken(TokenRequest) returns (VoteToken) {
   }
   rpc QueryAuthorizeVote(MessageToSign) returns (SignedMessage) {
@@ -34,9 +34,13 @@ message MessageToSign {
   VoteToken token = 3;
 }
 
+// Określenia:
+// Ankieta/Question/Query, Głosowanie/Poll
 message PollQuestion {
   int32 id = 1;
 
+  // Określenia:
+  // Opcja/Option, Pole/Field
   message QueryField {
     string name = 1;
   }
@@ -63,20 +67,26 @@ message SignedMessage {
 
 // SignedVote is a final vote with RSA sign.
 message SignedVote {
-  Vote vote = 1;     // vote
-  bytes signm = 2;   // Mess, first part of sign
-  bytes signmd = 3;  // hash(Mess)^d mod N, second part of sign
+  Vote vote = 1;     // Vote.
+  // Określenia (na poniższą parę):
+  // Podpis/Sign
+  bytes signm = 2;   // First part of sign; Hasło/Password.
+  bytes signmd = 3;  // Second part of sign; Kod/Code.
 }
 
+// Określenia:
+// Głos/Vote
 message Vote {
-  int32 nr = 1;               // which question
-  repeated int32 answer = 2;  // >=1 answer mean 'yes', for now
+  int32 nr = 1;               // Which question is answered.
+  repeated int32 answer = 2;  // Answers io all fields.
 }
 
 message VoteReply {
   string mess = 1;
 }
 
+// Określenia:
+// Token/Token
 message VoteToken {
   bytes token = 1;
 }

@@ -21,16 +21,18 @@ var (
 	addr = "localhost:12345"
 )
 
-func runKeyExchange(ctx context.Context, client query.QueryClient, queryid int32) *rsa.PublicKey {
+func runKeyExchange(ctx context.Context, client query.QueryClient, queryid int32) (*rsa.PublicKey, error) {
 	r, err := client.KeyExchange(ctx, &query.KeyRequest{Nr: queryid})
 	if err != nil {
 		fmt.Printf("Client got error on KeyExchange function: %v\n", err)
+		return nil, err
 	}
 	key, err := x509.ParsePKCS1PublicKey(r.Key)
 	if err != nil {
 		fmt.Printf("Error in parsing key: %v\n", err)
+		return nil, err
 	}
-	return key
+	return key, nil
 }
 
 func runQueryInit(ctx context.Context, client query.QueryClient) {
@@ -66,8 +68,8 @@ func runQueryInit(ctx context.Context, client query.QueryClient) {
 // Inside function is getting token from server and anonymously sending vote
 // signed using RSA blind signature scheme.
 func runVote(ctx context.Context, client query.QueryClient, vote query.Vote) {
-	key := runKeyExchange(ctx, client, vote.Nr)
-	if key == nil {
+	key, err := runKeyExchange(ctx, client, vote.Nr)
+	if err != nil {
 		fmt.Printf("Failed to exchange keys\n")
 		return
 	}
@@ -75,7 +77,7 @@ func runVote(ctx context.Context, client query.QueryClient, vote query.Vote) {
 	// Get token to vote, may be changed.
 	t, err := client.QueryGetToken(ctx, &query.TokenRequest{Nr: vote.Nr})
 	if err != nil {
-		fmt.Printf("Client got error on GetToken function: %v", err)
+		fmt.Printf("Client got error on GetToken function: %v\n", err)
 	}
 	fmt.Printf("Token: %v\n", t)
 
@@ -83,7 +85,7 @@ func runVote(ctx context.Context, client query.QueryClient, vote query.Vote) {
 	// This value will be referred as Mess.
 	mess, err := rand.Int(rand.Reader, key.N)
 	if err != nil {
-		fmt.Printf("Rand.Int error in generating message to sign: %v", err)
+		fmt.Printf("Rand.Int error in generating message to sign: %v\n", err)
 	}
 	fmt.Printf("m: %v\n", mess)
 
@@ -96,7 +98,8 @@ func runVote(ctx context.Context, client query.QueryClient, vote query.Vote) {
 	// Get random blinding factor.
 	r, err := rand.Int(rand.Reader, key.N)
 	if err != nil {
-		fmt.Printf("Rand.Int error in generating blinding factor: %v", err)
+		fmt.Printf("Rand.Int error in generating blinding factor: %v\n", err)
+		return
 	}
 
 	// We want to send m*r^e mod N to server.
@@ -116,7 +119,8 @@ func runVote(ctx context.Context, client query.QueryClient, vote query.Vote) {
 	// Receive (m^d)*r mod N from server.
 	sm, err := client.QueryAuthorizeVote(ctx, &mts)
 	if err != nil {
-		fmt.Printf("Client got error on QueryVote function: %v", err)
+		fmt.Printf("Client got error on QueryAuthorizeVote function: %v\n", err)
+		return
 	}
 
 	// Having (m^d)*r mod N we are removing blinding factor r,
@@ -140,7 +144,19 @@ func runVote(ctx context.Context, client query.QueryClient, vote query.Vote) {
 	}
 	vr, err := client.QueryVote(ctx, &sv)
 	if err != nil {
-		fmt.Printf("Client got error on QueryVote function: %v", err)
+		fmt.Printf("Client got error on QueryVote function: %v\n", err)
+		return
+	}
+	fmt.Printf("Mess: %v\n", vr.Mess)
+	// We are sending vote with pair (Mess, m^d mod N = hash(Mess)^d mod N)
+	sv = query.SignedVote{
+		Vote:   &exampleVote2,
+		Signm:  mess.Bytes(),
+		Signmd: sign.Bytes(),
+	}
+	vr, err = client.QueryVote(ctx, &sv)
+	if err != nil {
+		fmt.Printf("Client got error on QueryVote2 function: %v\n", err)
 		return
 	}
 	fmt.Printf("Mess: %v\n", vr.Mess)
@@ -183,4 +199,9 @@ var exampleVote0 = query.Vote{
 var exampleVote1 = query.Vote{
 	Nr:     2,
 	Answer: []int32{1, 1, 0},
+}
+
+var exampleVote2 = query.Vote{
+	Nr:     1,
+	Answer: []int32{1, 0, 1},
 }

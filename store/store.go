@@ -1,35 +1,36 @@
 // Package for database management.
 //
 // Database structure:
-// KeysBucket is storing keys for queries.
-// Each key is stored in pair (keyid, key), where id is number of query
-// and key is PKCS1 encoding of key.
-// * KeysBucket
-//   - (keyid, key)
 //
-// QueriesBucket is storing data of queries: fields, tokens and votes.
-// * QueriesBucket
+//   KeysBucket is storing keys for queries.
+//   Each key is stored in pair (keyid, key), where id is number of query
+//   and key is PKCS1 encoding of key.
+//   * KeysBucket
+//     - (keyid, key)
 //
-//	 Each query is stored in separate bucket.
-//	 Id in name is its number (starting with 1!).
-//   - QueryidBucket
+//   QueriesBucket is storing data of queries: fields, tokens and votes.
+//   * QueriesBucket
 //
-//		 FieldsBucket stores query options represented as pair with its number and name (string).
-// 		 + FieldsBucket
-// 				- (id, name)
+//     Each query is stored in separate bucket.
+//     Id in name is its number (starting with 1!).
+//     - QueryidBucket
 //
-//		 TokensBucket is storing tokens to query.
-//		 Each is stored as its value as key and empty value.
-// 		 + TokensBucket
-// 				- (token, _)
+//       FieldsBucket stores query options represented as pair with its number and name (string).
+//       + FieldsBucket
+//         - (id, name)
 //
-// 		 VotesBucket stores votes for query.
-//		 + VotesBucket
+//       TokensBucket is storing tokens to query.
+//       Each is stored as its value as key and empty value.
+//       + TokensBucket
+//         - (token, _)
 //
-//			  Each vote is stored in a bucket named after ballot used to sign it.
-//				Answer to each field is pair consisting this field number and a number (actual answer).
-// 				- Ballot
-// 					* (id, answer)
+//       VotesBucket stores votes for query.
+//       + VotesBucket
+//
+//         Each vote is stored in a bucket named after ballot used to sign it.
+//         Answer to each field is pair consisting this field number and a number (actual answer).
+//         - Ballot
+//           * (id, answer)
 // Each number value is stored as its decimal representation.
 package store
 
@@ -70,27 +71,30 @@ func DBInit(filename string) (*bolt.DB, error) {
 // Key should be stored in bucket KeyBucket with label keyid, where id is number of query.
 // If keyid is not in database, nil is returned.
 // Key is stored in PKCS1 format.
-func GetKey(db *bolt.DB, queryid int) *rsa.PrivateKey {
+func GetKey(db *bolt.DB, queryid int) (*rsa.PrivateKey, error) {
 	var bkeycpy []byte
 	// Database db should be open before this call.
 	err := db.View(func(tx *bolt.Tx) error {
 		kbuck := tx.Bucket([]byte("KeyBucket"))
 		bkey := kbuck.Get([]byte("key" + strconv.Itoa(queryid)))
+		if bkey == nil {
+			return fmt.Errorf("No key for this query in database.")
+		}
+
 		bkeycpy = make([]byte, len(bkey))
 		copy(bkeycpy, bkey)
 		return nil
 	})
 
-	var key *rsa.PrivateKey
-	if len(bkeycpy) != 0 {
-		key, err = x509.ParsePKCS1PrivateKey(bkeycpy)
-		if err != nil {
-			fmt.Printf("Failed to convert key from binary: %v", err)
-		}
-	} else {
-		key = nil
+	if err != nil {
+		return nil, err
 	}
-	return key
+
+	key, err := x509.ParsePKCS1PrivateKey(bkeycpy)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to convert key from binary: %w", err)
+	}
+	return key, nil
 }
 
 // SaveKey saves query key to database.
@@ -150,8 +154,7 @@ func ModifyQueryField(db *bolt.DB, queryid int, fieldid int32, name string) erro
 		// Each query have its own bucket inside QueriesBucket.
 		qbuck := queriesbuck.Bucket([]byte("Query" + strconv.Itoa(queryid) + "Bucket"))
 		if qbuck == nil {
-			fmt.Printf("Wrong Query number: %v", queryid)
-			return nil
+			return fmt.Errorf("Wrong Query number: %v", queryid)
 		}
 		fbuck := qbuck.Bucket([]byte("FieldsBucket"))
 
@@ -164,8 +167,7 @@ func ModifyQueryField(db *bolt.DB, queryid int, fieldid int32, name string) erro
 			field := fbuck.Get([]byte(strconv.Itoa(int(fieldid))))
 			if field == nil {
 				// Not existing field is requested.
-				fmt.Printf("Wrong Query field number\n")
-				return nil
+				return fmt.Errorf("Wrong Query field number")
 			}
 		}
 
@@ -174,7 +176,7 @@ func ModifyQueryField(db *bolt.DB, queryid int, fieldid int32, name string) erro
 }
 
 // GetQuery reads query from database.
-func GetQuery(db *bolt.DB, id int) query.PollQuestion {
+func GetQuery(db *bolt.DB, id int) (query.PollQuestion, error) {
 	q := query.PollQuestion{
 		Id: int32(id),
 	}
@@ -184,8 +186,7 @@ func GetQuery(db *bolt.DB, id int) query.PollQuestion {
 
 		qbuck := queriesbuck.Bucket([]byte("Query" + strconv.Itoa(id) + "Bucket"))
 		if qbuck == nil {
-			fmt.Printf("Wrong Query number: %v", id)
-			return nil
+			return fmt.Errorf("Wrong Query number in GetQuery: %v", id)
 		}
 
 		// Fields are stored as pairs (nr, name), where name is a name of this choice.
@@ -219,7 +220,7 @@ func GetQuery(db *bolt.DB, id int) query.PollQuestion {
 			for ki, vi := cins.First(); ki != nil; ki, vi = cins.Next() {
 				val, errins := strconv.Atoi(string(vi))
 				if errins != nil {
-					return errins
+					return fmt.Errorf("Failed to convert answer to number in GetQuery: %w", errins)
 				}
 				vt.Answer = append(vt.Answer, int32(val))
 			}
@@ -227,10 +228,7 @@ func GetQuery(db *bolt.DB, id int) query.PollQuestion {
 		}
 		return nil
 	})
-	if err != nil {
-		fmt.Printf("Failed to read from database in GetQuery: %v", err)
-	}
-	return q
+	return q, err
 }
 
 // NewToken checks if token request is valid and return new token.
@@ -241,8 +239,7 @@ func NewToken(db *bolt.DB, in *query.TokenRequest) (*query.VoteToken, error) {
 
 		qbuck := queriesbuck.Bucket([]byte("Query" + strconv.Itoa(int(in.Nr)) + "Bucket"))
 		if qbuck == nil {
-			fmt.Printf("Wrong Query number in NewToken: %v\n", in.Nr)
-			return nil
+			return fmt.Errorf("Wrong Query number in NewToken: %v", in.Nr)
 		}
 		tbuck := qbuck.Bucket([]byte("TokensBucket"))
 
@@ -251,7 +248,7 @@ func NewToken(db *bolt.DB, in *query.TokenRequest) (*query.VoteToken, error) {
 		max = max.Exp(max, big.NewInt(1024), big.NewInt(0))
 		val, err := rand.Int(rand.Reader, max)
 		if err != nil {
-
+			return err
 		}
 		token := sha256.Sum256(val.Bytes())
 
@@ -278,9 +275,8 @@ func AcceptToken(db *bolt.DB, token *query.VoteToken, queryid int32) (res bool, 
 
 		// Check if query of number queryid exists.
 		if qbuck == nil {
-			fmt.Printf("No such query: %v\n", queryid)
 			res = false
-			return nil
+			return fmt.Errorf("No such query: %v", queryid)
 		}
 		tbuck := qbuck.Bucket([]byte("TokensBucket"))
 
@@ -291,7 +287,7 @@ func AcceptToken(db *bolt.DB, token *query.VoteToken, queryid int32) (res bool, 
 			// After use we remove token from database.
 			tbuck.Delete(token.Token)
 		} else {
-			fmt.Print("No such token\n")
+			fmt.Print("No such token")
 			res = false
 		}
 		return nil
@@ -311,7 +307,7 @@ func AcceptVote(db *bolt.DB, sv *query.SignedVote) (vr *query.VoteReply, err err
 		// Check if query of number v.Nr exists.
 		if qbuck == nil {
 			vr.Mess = "Vote error"
-			return fmt.Errorf("No such query: %v\n", v.Nr)
+			return fmt.Errorf("No such query: %v", v.Nr)
 		}
 		vbuck := qbuck.Bucket([]byte("VotesBucket"))
 		fbuck := qbuck.Bucket([]byte("FieldsBucket"))
@@ -324,17 +320,15 @@ func AcceptVote(db *bolt.DB, sv *query.SignedVote) (vr *query.VoteReply, err err
 		}
 
 		if len(v.Answer) != nF {
-			fmt.Printf("Wrong vote size: %v, wanted: %v\n", len(v.Answer), nF)
 			vr.Mess = "Vote error"
-			return nil
+			return fmt.Errorf("Wrong vote size: %v, wanted: %v", len(v.Answer), nF)
 		}
 
 		// Save vote. Vote is stored as a bucket.
 		// Name of this bucket is ballot used for signing it.
-		newvbuck, errins := vbuck.CreateBucket(sv.Signm)
+		newvbuck, errins := vbuck.CreateBucketIfNotExists(sv.Signm)
 
 		if errins != nil {
-			fmt.Printf("Failed to create bucket\n")
 			vr.Mess = "Vote error"
 			return errins
 		}
@@ -343,15 +337,14 @@ func AcceptVote(db *bolt.DB, sv *query.SignedVote) (vr *query.VoteReply, err err
 		for i := 0; i < nF; i++ {
 			errins := newvbuck.Put([]byte(strconv.Itoa(i)), []byte(strconv.Itoa(int(v.Answer[i]))))
 			if errins != nil {
-				fmt.Printf("Failed to put part of the vote: %v\n", i)
 				vr.Mess = "Vote error"
 				return errins
 			}
 		}
 
-		vr.Mess = "Thank you for your vote!\n"
+		vr.Mess = "Thank you for your vote!"
 		return nil
 	})
-	fmt.Printf("Response: %v\n", vr)
+	fmt.Printf("Response: %v", vr)
 	return
 }
