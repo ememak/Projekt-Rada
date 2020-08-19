@@ -22,7 +22,7 @@ var (
 )
 
 func runKeyExchange(ctx context.Context, client query.QueryClient, queryid int32) (*rsa.PublicKey, error) {
-	r, err := client.KeyExchange(ctx, &query.KeyRequest{Nr: queryid})
+	r, err := client.KeyExchange(ctx, &query.KeyRequest{Pollid: queryid})
 	if err != nil {
 		fmt.Printf("Client got error on KeyExchange function: %v\n", err)
 		return nil, err
@@ -68,14 +68,14 @@ func runQueryInit(ctx context.Context, client query.QueryClient) {
 // Inside function is getting token from server and anonymously sending vote
 // signed using RSA blind signature scheme.
 func runVote(ctx context.Context, client query.QueryClient, vote query.Vote) {
-	key, err := runKeyExchange(ctx, client, vote.Nr)
+	key, err := runKeyExchange(ctx, client, vote.Pollid)
 	if err != nil {
 		fmt.Printf("Failed to exchange keys\n")
 		return
 	}
 
 	// Get token to vote, may be changed.
-	t, err := client.QueryGetToken(ctx, &query.TokenRequest{Nr: vote.Nr})
+	t, err := client.QueryGetToken(ctx, &query.TokenRequest{Pollid: vote.Pollid})
 	if err != nil {
 		fmt.Printf("Client got error on GetToken function: %v\n", err)
 	}
@@ -110,10 +110,10 @@ func runVote(ctx context.Context, client query.QueryClient, vote query.Vote) {
 	blinded := bfactor.Mod(bfactor.Mul(bfactor, m), key.N)
 	// Now we can send m*(r^e) to server.
 	// We are sending it with number of query and token to it so that server could authorize our request.
-	var mts = query.MessageToSign{
-		Mess:  blinded.Bytes(),
-		Nr:    vote.Nr,
-		Token: t,
+	var mts = query.BallotToSign{
+		Ballot: blinded.Bytes(),
+		Pollid: vote.Pollid,
+		Token:  t,
 	}
 
 	// Receive (m^d)*r mod N from server.
@@ -181,7 +181,7 @@ func main() {
 	runVote(ctx, c, exampleVote1)
 }
 
-var exampleQuery = []query.Field{
+var exampleQuery = []query.FieldEdit{
 	{Which: -1, Name: "First Option"},
 	{Which: -1, Name: "Second Option"},
 	{Which: 1, Name: "Edit First Option"},
@@ -192,16 +192,16 @@ var exampleQuery = []query.Field{
 // Second time both should pass.
 // Second vote is asking about query number one, which don't exist during first launch.
 var exampleVote0 = query.Vote{
-	Nr:     1,
+	Pollid: 1,
 	Answer: []int32{0, 1, 1},
 }
 
 var exampleVote1 = query.Vote{
-	Nr:     2,
+	Pollid: 2,
 	Answer: []int32{1, 1, 0},
 }
 
 var exampleVote2 = query.Vote{
-	Nr:     1,
+	Pollid: 1,
 	Answer: []int32{1, 0, 1},
 }

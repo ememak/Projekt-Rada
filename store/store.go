@@ -237,9 +237,9 @@ func NewToken(db *bolt.DB, in *query.TokenRequest) (*query.VoteToken, error) {
 	err := db.Update(func(tx *bolt.Tx) error {
 		queriesbuck := tx.Bucket([]byte("QueriesBucket"))
 
-		qbuck := queriesbuck.Bucket([]byte("Query" + strconv.Itoa(int(in.Nr)) + "Bucket"))
+		qbuck := queriesbuck.Bucket([]byte("Query" + strconv.Itoa(int(in.Pollid)) + "Bucket"))
 		if qbuck == nil {
-			return fmt.Errorf("Wrong Query number in NewToken: %v", in.Nr)
+			return fmt.Errorf("Wrong Query number in NewToken: %v", in.Pollid)
 		}
 		tbuck := qbuck.Bucket([]byte("TokensBucket"))
 
@@ -263,7 +263,7 @@ func NewToken(db *bolt.DB, in *query.TokenRequest) (*query.VoteToken, error) {
 	return &t, err
 }
 
-// AcceptToken checks if MessageToSign is matching server informations.
+// AcceptToken checks if BallotToSign is matching server informations.
 //
 // Function returns true if token is a token of data[qNum] (provided
 // such query exists). In other case it returns false.
@@ -302,12 +302,12 @@ func AcceptVote(db *bolt.DB, sv *query.SignedVote) (vr *query.VoteReply, err err
 	err = db.Update(func(tx *bolt.Tx) error {
 		queriesbuck := tx.Bucket([]byte("QueriesBucket"))
 
-		qbuck := queriesbuck.Bucket([]byte("Query" + strconv.Itoa(int(v.Nr)) + "Bucket"))
+		qbuck := queriesbuck.Bucket([]byte("Query" + strconv.Itoa(int(v.Pollid)) + "Bucket"))
 
 		// Check if query of number v.Nr exists.
 		if qbuck == nil {
 			vr.Mess = "Vote error"
-			return fmt.Errorf("No such query: %v", v.Nr)
+			return fmt.Errorf("No such query: %v", v.Pollid)
 		}
 		vbuck := qbuck.Bucket([]byte("VotesBucket"))
 		fbuck := qbuck.Bucket([]byte("FieldsBucket"))

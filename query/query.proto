@@ -3,44 +3,65 @@ syntax = "proto3";
 package query;
 
 service Query {
+  // KeyExchange is function used to exchange server public key for specific poll.
   rpc KeyExchange(KeyRequest) returns (KeyReply) {
   }
-  rpc QueryInit(stream Field) returns (PollQuestion) {
+
+  // QueryInit generates new query.
+  rpc QueryInit(stream FieldEdit) returns (PollQuestion) {
   }
+
+  // QueryGetToken generates token used to authorize ballot.
   rpc QueryGetToken(TokenRequest) returns (VoteToken) {
   }
-  rpc QueryAuthorizeVote(MessageToSign) returns (SignedMessage) {
+
+  // QueryAuthorizeVote authorizes a ballot if sent with valid token.
+  rpc QueryAuthorizeVote(BallotToSign) returns (SignedBallot) {
   }
+
+  // QueryVote get signed vote from client, check it's validity and save it.
   rpc QueryVote(SignedVote) returns (VoteReply) {
   }
 }
 
+// KeyRequest is used to ask for RSA public key of a specific poll.
+//
+// This key is further used in blind signature scheme.
+// KeyExchange is supposed to be called before authorizing votes.
 message KeyRequest {
-  int32 nr = 1;
+  int32 pollid = 1;
 }
 
+// KeyReply contains RSA public key of previously requested poll.
+//
+// Key is further used in blind signature scheme.
 message KeyReply {
-  bytes Key = 1;  // Public Key stored in PKCS1 format.
+  bytes key = 1;  // Public Key stored in PKCS1 format.
 }
 
-message Field {
+// FieldEdit have information which option we edit and to what we want to change it.
+message FieldEdit {
   int32 which = 1;  // which field we edit, -1 = new field in query
   string name = 2;  // query option name
 }
 
-message MessageToSign {
-  bytes mess = 1;
-  int32 nr = 2;
+// BallotToSign exchange token for authorizing a ballot.
+//
+// Ballot is used for voting in specific query.
+// If token is valid for this poll, ballot will be signed.
+message BallotToSign {
+  bytes ballot = 1;
+  int32 pollid = 2;
   VoteToken token = 3;
 }
 
-// Określenia:
-// Ankieta/Question/Query, Głosowanie/Poll
+// PolLQuestion represents one specific poll.
+//
+// Structure contains its id, options for voting,
+// unsused tokens for authorizing votes and accepted votes.
 message PollQuestion {
   int32 id = 1;
 
-  // Określenia:
-  // Opcja/Option, Pole/Field
   message QueryField {
     string name = 1;
   }
@@ -56,37 +77,50 @@ message PollQuestion {
   repeated StoredVote votes = 4;
 }
 
+// TokenRequest asks server for voting access in specific poll.
 message TokenRequest {
-  int32 nr = 1;
+  int32 pollid = 1;
 }
 
-message SignedMessage {
-  bytes mess = 1;
+// SignedBallot is authorized respond to BallotToSign.
+//
+// Ballot is the same value as in BallotToSign, can be not necessary.
+// Sign is (ballot^d) mod N, message signed by server. This value is
+// further used as second part of the signature in SignedVote.
+message SignedBallot {
+  bytes ballot = 1;
   bytes sign = 2;
 }
 
-// SignedVote is a final vote with RSA sign.
+// SignedVote is a final vote with RSA signature.
+//
+// If the same signature is used twice, vote in system will be replaced.
 message SignedVote {
   Vote vote = 1;     // Vote.
-  // Określenia (na poniższą parę):
-  // Podpis/Sign
   bytes signm = 2;   // First part of sign; Hasło/Password.
   bytes signmd = 3;  // Second part of sign; Kod/Code.
 }
 
-// Określenia:
-// Głos/Vote
+// Vote consists of poll number and client answers.
+//
+// Answers are for now just ints (e. g. 0 - false, 1 - true or range vote from 0 to 5).
+// This can change.
 message Vote {
-  int32 nr = 1;               // Which question is answered.
+  int32 pollid = 1;           // Which question is answered.
   repeated int32 answer = 2;  // Answers io all fields.
 }
 
+// VoteReply is a sent after voting.
+//
+// If vote was accepted by server, reply is "Thank you for your vote!",
+// else it's "Vote error", without specifying the reason of failure.
 message VoteReply {
   string mess = 1;
 }
 
-// Określenia:
-// Token/Token
+// VoteToken is a permission to vote in a specific query.
+//
+// Token value inside is random number (it only have to be unique).
 message VoteToken {
   bytes token = 1;
 }

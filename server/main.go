@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"os"
 
 	"github.com/ememak/Projekt-Rada/bsign"
 	"github.com/ememak/Projekt-Rada/query"
@@ -35,7 +36,7 @@ type server struct {
 // As an input function takes KeyRequest, which contains number of query.
 // If key is not in database (e.g. requested nonexisting query), reply contains empty byte array.
 func (s *server) KeyExchange(ctx context.Context, in *query.KeyRequest) (*query.KeyReply, error) {
-	key, err := store.GetKey(s.data, int(in.Nr))
+	key, err := store.GetKey(s.data, int(in.Pollid))
 	if err != nil {
 		err = fmt.Errorf("Error in KeyExchange while retrieving key from database: %w", err)
 		return &query.KeyReply{}, err
@@ -104,23 +105,23 @@ func (s *server) QueryGetToken(ctx context.Context, in *query.TokenRequest) (*qu
 //
 // Function takes as input message consisting of blinded ballot and
 // token returned by function QueryGetToken if such token was not used before.
-func (s *server) QueryAuthorizeVote(ctx context.Context, in *query.MessageToSign) (*query.SignedMessage, error) {
+func (s *server) QueryAuthorizeVote(ctx context.Context, in *query.BallotToSign) (*query.SignedBallot, error) {
 	// Check if token and number of query are valid.
-	ok, _ := store.AcceptToken(s.data, in.Token, in.Nr)
+	ok, _ := store.AcceptToken(s.data, in.Token, in.Pollid)
 	if ok == false {
-		return &query.SignedMessage{}, nil
+		return &query.SignedBallot{}, nil
 	}
 
-	key, err := store.GetKey(s.data, int(in.Nr))
+	key, err := store.GetKey(s.data, int(in.Pollid))
 	if err != nil {
 		fmt.Printf("Error in QueryAuthorizeVote while retrieving key from database: %w", err)
-		return &query.SignedMessage{}, err
+		return &query.SignedBallot{}, err
 	}
 	// Server is signing authorized message.
-	sign := bsign.Sign(key, in.Mess)
-	SM := query.SignedMessage{
-		Mess: in.Mess, //may be not necessary
-		Sign: sign.Bytes(),
+	sign := bsign.Sign(key, in.Ballot)
+	SM := query.SignedBallot{
+		Ballot: in.Ballot, //may be not necessary
+		Sign:   sign.Bytes(),
 	}
 	fmt.Printf("Token valid\n")
 	return &SM, nil
@@ -130,7 +131,7 @@ func (s *server) QueryAuthorizeVote(ctx context.Context, in *query.MessageToSign
 //
 // SignedVote on input consists of vote and sign. If sign was used before, vote is overwritten.
 func (s *server) QueryVote(ctx context.Context, in *query.SignedVote) (*query.VoteReply, error) {
-	key, err := store.GetKey(s.data, int(in.Vote.Nr))
+	key, err := store.GetKey(s.data, int(in.Vote.Pollid))
 	if err != nil {
 		err = fmt.Errorf("Error in QueryVote while retrieving key from database: %w", err)
 		return &query.VoteReply{Mess: "Error in QueryVote\n"}, err
@@ -147,7 +148,7 @@ func (s *server) QueryVote(ctx context.Context, in *query.SignedVote) (*query.Vo
 		return vr, err
 	}
 
-	q, _ := store.GetQuery(s.data, int(in.Vote.Nr))
+	q, _ := store.GetQuery(s.data, int(in.Vote.Pollid))
 	fmt.Printf("In Memory: %v\n", q)
 	return vr, nil
 }
