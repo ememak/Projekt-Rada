@@ -3,46 +3,21 @@ syntax = "proto3";
 package query;
 
 service Query {
-  // KeyExchange is function used to exchange server public key for specific poll.
+  // KeyExchange is a function used to exchange server public key for specific poll.
   rpc KeyExchange(KeyRequest) returns (KeyReply) {
   }
 
-  // QueryInit generates new query.
-  rpc QueryInit(stream FieldEdit) returns (PollQuestion) {
+  // PollInit generates new query.
+  rpc PollInit(PollSchema) returns (PollQuestion) {
   }
 
-  // QueryGetToken generates token used to authorize ballot.
-  rpc QueryGetToken(TokenRequest) returns (VoteToken) {
+  // SignBallot authorizes a ballot if sent with valid token.
+  rpc SignBallot(BallotToSign) returns (SignedBallot) {
   }
 
-  // QueryAuthorizeVote authorizes a ballot if sent with valid token.
-  rpc QueryAuthorizeVote(BallotToSign) returns (SignedBallot) {
+  // PollVote get signed vote from client, check it's validity and save it.
+  rpc PollVote(VoteRequest) returns (VoteReply) {
   }
-
-  // QueryVote get signed vote from client, check it's validity and save it.
-  rpc QueryVote(SignedVote) returns (VoteReply) {
-  }
-}
-
-// KeyRequest is used to ask for RSA public key of a specific poll.
-//
-// This key is further used in blind signature scheme.
-// KeyExchange is supposed to be called before authorizing votes.
-message KeyRequest {
-  int32 pollid = 1;
-}
-
-// KeyReply contains RSA public key of previously requested poll.
-//
-// Key is further used in blind signature scheme.
-message KeyReply {
-  bytes key = 1;  // Public Key stored in PKCS1 format.
-}
-
-// FieldEdit have information which option we edit and to what we want to change it.
-message FieldEdit {
-  int32 which = 1;  // which field we edit, -1 = new field in query
-  string name = 2;  // query option name
 }
 
 // BallotToSign exchange token for authorizing a ballot.
@@ -55,59 +30,73 @@ message BallotToSign {
   VoteToken token = 3;
 }
 
-// PolLQuestion represents one specific poll.
+// KeyReply contains RSA public key and questions of previously requested poll.
 //
-// Structure contains its id, options for voting,
-// unsused tokens for authorizing votes and accepted votes.
-message PollQuestion {
-  int32 id = 1;
-
-  message QueryField {
-    string name = 1;
-  }
-
-  message StoredVote {
-    repeated int32 answer = 1;
-  }
-
-  repeated QueryField fields = 2;
-
-  repeated VoteToken tokens = 3;
-
-  repeated StoredVote votes = 4;
+// Key is further used in blind signature scheme.
+// Poll contains only questions and their types.
+message KeyReply {
+  PublicKey key = 1;
+  PollSchema poll = 2;
 }
 
-// TokenRequest asks server for voting access in specific poll.
-message TokenRequest {
+// KeyRequest is used to ask for RSA public key and questions of a specific poll.
+//
+// Key is further used in blind signature scheme.
+// KeyExchange is supposed to be called at the beginning of the protocol.
+message KeyRequest {
   int32 pollid = 1;
 }
 
-// SignedBallot is authorized respond to BallotToSign.
+// PollAnswer is a signed answer to poll questions.
+message PollAnswer {
+  PollSchema answer = 1;
+  SignedBallot ballot = 2;
+}
+
+// PublicKey is a RSA public key stored in PKCS1 format.
+message PublicKey {
+  bytes key = 1;
+}
+
+// PollSchema contains poll's questions and answers.
+message PollSchema {
+  enum QuestionType {
+    OPEN = 0; // User can write what he want.
+    CHECKBOX = 1; // User have to choose some options from a list.
+    CLOSE = 2; // User have to choose one option from a list.
+  }
+
+  message QA {
+    string question = 1;
+    QuestionType type = 2;
+    string answer = 3;
+  }
+
+  repeated QA questions = 1;
+}
+
+// PolLQuestion represents one specific poll.
 //
-// Ballot is the same value as in BallotToSign, can be not necessary.
+// Structure contains its id, options for voting,
+// unused tokens for authorizing votes and accepted votes.
+message PollQuestion {
+  int32 id = 1;
+
+  PollSchema schema = 2;
+
+  repeated VoteToken tokens = 3;
+
+  repeated PollAnswer votes = 4;
+}
+
+// SignedBallot is an authorized respond to BallotToSign.
+//
+// Ballot is the same value as in BallotToSign.
 // Sign is (ballot^d) mod N, message signed by server. This value is
-// further used as second part of the signature in SignedVote.
+// further used as second part of the signature in VoteRequest.
 message SignedBallot {
   bytes ballot = 1;
   bytes sign = 2;
-}
-
-// SignedVote is a final vote with RSA signature.
-//
-// If the same signature is used twice, vote in system will be replaced.
-message SignedVote {
-  Vote vote = 1;     // Vote.
-  bytes signm = 2;   // First part of sign; Hasło/Password.
-  bytes signmd = 3;  // Second part of sign; Kod/Code.
-}
-
-// Vote consists of poll number and client answers.
-//
-// Answers are for now just ints (e. g. 0 - false, 1 - true or range vote from 0 to 5).
-// This can change.
-message Vote {
-  int32 pollid = 1;           // Which question is answered.
-  repeated int32 answer = 2;  // Answers io all fields.
 }
 
 // VoteReply is a sent after voting.
@@ -116,6 +105,15 @@ message Vote {
 // else it's "Vote error", without specifying the reason of failure.
 message VoteReply {
   string mess = 1;
+}
+
+// VoteRequest is a final vote with RSA signature.
+//
+// If the same signature is used twice, vote in system will be replaced.
+message VoteRequest {
+  int32 pollid = 1;                 // Which question is answered.
+  repeated PollSchema answers = 2;  // Answers to all questions.
+  SignedBallot ballot = 3;          // RSA blind signature.
 }
 
 // VoteToken is a permission to vote in a specific query.
