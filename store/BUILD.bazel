@@ -1,12 +1,21 @@
-load("@io_bazel_rules_go//go:def.bzl", "go_library")
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
 
 go_library(
     name = "go_default_library",
-    srcs = ["store.go"],
+    srcs = [
+        "store.go",
+        "store_test_data.go",
+    ],
     importpath = "github.com/ememak/Projekt-Rada/store",
     visibility = ["//visibility:public"],
     deps = [
         "//query:go_default_library",
         "@io_etcd_go_bbolt//:go_default_library",
     ],
+)
+
+go_test(
+    name = "go_default_test",
+    srcs = ["store_test.go"],
+    embed = [":go_default_library"],
 )

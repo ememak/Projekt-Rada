@@ -5,13 +5,12 @@ import (
 	"context"
 	"crypto/rand"
 	"crypto/rsa"
-	"crypto/x509"
+	//"crypto/x509"
 	"fmt"
-	"io"
 	"net"
 	"os"
 
-	"github.com/ememak/Projekt-Rada/bsign"
+	//"github.com/ememak/Projekt-Rada/bsign"
 	"github.com/ememak/Projekt-Rada/query"
 	"github.com/ememak/Projekt-Rada/store"
 	bolt "go.etcd.io/bbolt"
@@ -31,76 +30,59 @@ type server struct {
 	data *bolt.DB
 }
 
-// KeyExchange is function used to exchange server public key for specific poll.
+/*
+// GetPoll is function used to exchange server public key for specific poll.
 //
-// As an input function takes KeyRequest, which contains number of query.
+// As an input function takes GetPollRequest, which contains number of query.
 // If key is not in database (e.g. requested nonexisting query), reply contains empty byte array.
-func (s *server) KeyExchange(ctx context.Context, in *query.KeyRequest) (*query.KeyReply, error) {
+func (s *server) GetPoll(ctx context.Context, in *query.GetPollRequest) (*query.PollWithPublicKey, error) {
 	key, err := store.GetKey(s.data, int(in.Pollid))
 	if err != nil {
-		err = fmt.Errorf("Error in KeyExchange while retrieving key from database: %w", err)
-		return &query.KeyReply{}, err
+		err = fmt.Errorf("Error in GetPoll while retrieving key from database: %w", err)
+		return &query.PollWithPublicKey{}, err
 	}
 	var binkey []byte
 	if key != nil {
 		binkey = x509.MarshalPKCS1PublicKey(&key.PublicKey)
 	}
 
-	return &query.KeyReply{
-		Key: binkey,
-	}, nil
-}
-
-// QueryInit generates new query.
-//
-// Questions are passed from client to server as stream of Field messages
-// defined in query.proto.
-func (s *server) QueryInit(stream query.Query_QueryInitServer) error {
-	// Make new Query
-	id, err := store.NewQuery(s.data)
+	poll, err := store.GetPoll(s.data, int(in.Pollid))
 	if err != nil {
-		err = fmt.Errorf("Error in QueryInit while creating new query in database: %w", err)
-		return err
+		err = fmt.Errorf("Error in GetPoll while retrieving poll from database: %w", err)
+		return &query.PollWithPublicKey{}, err
+	}
+
+	return &query.PollWithPublicKey{
+		Key: &query.PublicKey{
+			Key: binkey,
+		},
+		Poll: poll.Schema,
+	}, nil
+}*/
+
+// PollInit generates new poll and saves it to database.
+//
+// Questions and their types are passed in input parameter.
+func (s *server) PollInit(ctx context.Context, in *query.PollSchema) (*query.PollQuestion, error) {
+	poll, err := store.NewPoll(s.data, in)
+	if err != nil {
+		return poll, fmt.Errorf("Error in PollInit while creating new poll in database: %w", err)
 	}
 
 	key, err := rsa.GenerateKey(rand.Reader, 2048)
 	if err != nil {
-		err = fmt.Errorf("Error in QueryInit during key generation: %w", err)
-		return err
+		return poll, fmt.Errorf("Error in PollInit during key generation: %w", err)
 	}
-	err = store.SaveKey(s.data, id, key)
+	err = store.SaveKey(s.data, poll.Id, key)
 	if err != nil {
-		err = fmt.Errorf("Error in QueryInit while saving key: %w", err)
-		return err
+		return poll, fmt.Errorf("Error in PollInit while saving key: %w", err)
 	}
 
-	fmt.Printf("QueryInitReceived, id = %v\n", id)
-
-	for {
-		field, err := stream.Recv()
-		// End of stream, we are saving new query.
-		if err == io.EOF {
-			q, errins := store.GetQuery(s.data, id)
-			if errins != nil {
-				return errins
-			}
-
-			fmt.Printf("Sending back: %v\n", q)
-			return stream.SendAndClose(&q)
-		}
-		if err != nil {
-			err = fmt.Errorf("Error in QueryInit while streaming: %w", err)
-			return err
-		}
-		err = store.ModifyQueryField(s.data, id, field.Which, field.Name)
-	}
+	fmt.Printf("PollInitReceived, id = %v\n", poll.Id)
+	return poll, nil
 }
 
-// QueryGetToken generates token used to authorize ballot.
-func (s *server) QueryGetToken(ctx context.Context, in *query.TokenRequest) (*query.VoteToken, error) {
-	return store.NewToken(s.data, in)
-}
-
+/*
 // QueryAuthorizeVote authorizes a ballot if sent with valid token.
 //
 // Function takes as input message consisting of blinded ballot and
@@ -151,13 +133,13 @@ func (s *server) QueryVote(ctx context.Context, in *query.SignedVote) (*query.Vo
 	q, _ := store.GetQuery(s.data, int(in.Vote.Pollid))
 	fmt.Printf("In Memory: %v\n", q)
 	return vr, nil
-}
+}*/
 
-func serverInit() (*server, error) {
+func serverInit(dbfilename string) (*server, error) {
 	var err error
 	s := &server{}
 
-	s.data, err = store.DBInit("data.db")
+	s.data, err = store.DBInit(dbfilename)
 	if err != nil {
 		err = fmt.Errorf("Error in serverInit, failed to initialise database: %w", err)
 	}
@@ -172,9 +154,9 @@ func main() {
 	}
 
 	s := grpc.NewServer()
-	service, err := serverInit()
+	service, err := serverInit("data.db")
 	if err != nil {
-		fmt.Printf("", err)
+		fmt.Printf("Error in serverInit: %v", err)
 		os.Exit(1)
 	}
 

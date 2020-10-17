@@ -3,59 +3,55 @@ syntax = "proto3";
 package query;
 
 service Query {
-  // KeyExchange is a function used to exchange server public key for specific poll.
-  rpc KeyExchange(KeyRequest) returns (KeyReply) {
+  // GetPoll is a function used to exchange server public key for specific poll.
+  rpc GetPoll(GetPollRequest) returns (PollWithPublicKey) {
   }
 
-  // PollInit generates new query.
+  // PollInit generates new poll.
   rpc PollInit(PollSchema) returns (PollQuestion) {
   }
 
   // SignBallot authorizes a ballot if sent with valid token.
-  rpc SignBallot(BallotToSign) returns (SignedBallot) {
+  rpc SignBallot(EnvelopeToSign) returns (SignedEnvelope) {
   }
 
-  // PollVote get signed vote from client, check it's validity and save it.
+  // PollVote get a signed vote from client, check its validity and saves it.
   rpc PollVote(VoteRequest) returns (VoteReply) {
   }
 }
 
-// BallotToSign exchange token for authorizing a ballot.
+// EnvelopeToSign exchange token for authorizing a ballot.
 //
-// Ballot is used for voting in specific query.
-// If token is valid for this poll, ballot will be signed.
-message BallotToSign {
-  bytes ballot = 1;
+// Envelope is a blinded ballot which after authorizing
+// is used for voting in specific poll.
+// If token is valid for this poll, envelope will be signed.
+message EnvelopeToSign {
+  bytes envelope = 1;
   int32 pollid = 2;
   VoteToken token = 3;
 }
 
-// KeyReply contains RSA public key and questions of previously requested poll.
+// PollWithPublicKey contains RSA public key and questions of previously requested poll.
 //
 // Key is further used in blind signature scheme.
 // Poll contains only questions and their types.
-message KeyReply {
+message PollWithPublicKey {
   PublicKey key = 1;
   PollSchema poll = 2;
 }
 
-// KeyRequest is used to ask for RSA public key and questions of a specific poll.
+// GetPollRequest is used to ask for RSA public key and questions of a specific poll.
 //
 // Key is further used in blind signature scheme.
-// KeyExchange is supposed to be called at the beginning of the protocol.
-message KeyRequest {
+// GetPoll is supposed to be called at the beginning of the protocol.
+message GetPollRequest {
   int32 pollid = 1;
 }
 
 // PollAnswer is a signed answer to poll questions.
 message PollAnswer {
   PollSchema answer = 1;
-  SignedBallot ballot = 2;
-}
-
-// PublicKey is a RSA public key stored in PKCS1 format.
-message PublicKey {
-  bytes key = 1;
+  RSASignature sign = 2;
 }
 
 // PollSchema contains poll's questions and answers.
@@ -89,13 +85,27 @@ message PollQuestion {
   repeated PollAnswer votes = 4;
 }
 
-// SignedBallot is an authorized respond to BallotToSign.
+// PublicKey is a RSA public key stored in PKCS1 format.
+message PublicKey {
+  bytes key = 1;
+}
+
+// RSASignature contains final RSA sign.
 //
-// Ballot is the same value as in BallotToSign.
-// Sign is (ballot^d) mod N, message signed by server. This value is
-// further used as second part of the signature in VoteRequest.
-message SignedBallot {
+// Sign is valid if hash(ballot) == sign^e mod N.
+// Pair (N, e) above is a RSA public key for a specific poll.
+message RSASignature {
   bytes ballot = 1;
+  bytes sign = 2;
+}
+
+// SignedEnvelope is an authorized respond to EnvelopeToSign.
+//
+// Envelope is the same value as in EnvelopeToSign.
+// Sign is (envelope^d) mod N, message signed by server. This value is
+// further used as second part of the signature in VoteRequest.
+message SignedEnvelope {
+  bytes envelope = 1;
   bytes sign = 2;
 }
 
@@ -113,10 +123,10 @@ message VoteReply {
 message VoteRequest {
   int32 pollid = 1;                 // Which question is answered.
   repeated PollSchema answers = 2;  // Answers to all questions.
-  SignedBallot ballot = 3;          // RSA blind signature.
+  RSASignature sign = 3;          // RSA blind signature.
 }
 
-// VoteToken is a permission to vote in a specific query.
+// VoteToken is a permission to vote in a specific poll.
 //
 // Token value inside is random number (it only have to be unique).
 message VoteToken {

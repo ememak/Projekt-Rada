@@ -1,46 +1,52 @@
 // Package for database management.
 //
-// Database structure:
+// All structures are stored similar to how they are defined in query.proto file.
+// Main database buckets are containing RSA keys and polls data.
+// Here is more detailed sheme:
 //
-//   KeysBucket is storing keys for queries.
-//   Each key is stored in pair (keyid, key), where id is number of query
+//   KeysBucket is storing keys for polls.
+//   Each key is stored in pair (keyid, key), where id is number of poll
 //   and key is PKCS1 encoding of key.
 //   * KeysBucket
 //     - (keyid, key)
 //
-//   QueriesBucket is storing data of queries: fields, tokens and votes.
-//   * QueriesBucket
+//   PollsBucket is storing data of polls: schema, tokens and votes.
+//   * PollsBucket
 //
-//     Each query is stored in separate bucket.
+//     Each poll is stored in separate bucket.
 //     Id in name is its number (starting with 1!).
-//     - QueryidBucket
+//     - PollidBucket
 //
-//       FieldsBucket stores query options represented as pair with its number and name (string).
-//       + FieldsBucket
-//         - (id, name)
+//       SchemaBucket stores poll questions.
+//			 Each QA structure have its own bucket containing it.
+//       + SchemaBucket
+//         - QAid
+//					 * ("Question", question)
+//					 * ("Type", type)
+//					 * ("Answer", answer)
 //
-//       TokensBucket is storing tokens to query.
-//       Each is stored as its value as key and empty value.
+//       TokensBucket is storing tokens to poll.
+//       Each is stored as its value as key and bool value specifying if it was used.
 //       + TokensBucket
-//         - (token, _)
+//         - (token, used)
 //
-//       VotesBucket stores votes for query.
+//       VotesBucket stores votes for poll.
 //       + VotesBucket
 //
-//         Each vote is stored in a bucket named after ballot used to sign it.
-//         Answer to each field is pair consisting this field number and a number (actual answer).
+//         Each vote is stored in a bucket named after ballot used to signing it.
+//         Each QA structure is stored similarily as in SchemaBucket.
 //         - Ballot
-//           * (id, answer)
-// Each number value is stored as its decimal representation.
+//           * QAid
+//					 	 + ("Question", question)
+//					 	 + ("Type", type)
+//					   + ("Answer", answer)
+// Each number value is stored using strconv.Itoa function.
 package store
 
 import (
-	"crypto/rand"
 	"crypto/rsa"
-	"crypto/sha256"
 	"crypto/x509"
 	"fmt"
-	"math/big"
 	"strconv"
 
 	"github.com/ememak/Projekt-Rada/query"
@@ -60,25 +66,26 @@ func DBInit(filename string) (*bolt.DB, error) {
 		if err != nil {
 			return err
 		}
-		_, err = tx.CreateBucketIfNotExists([]byte("QueriesBucket"))
+		_, err = tx.CreateBucketIfNotExists([]byte("PollsBucket"))
 		return err
 	})
 	return db, err
 }
 
-// GetKey reads key for specific query from database.
+/*
+// GetKey reads key for specific poll from database.
 //
-// Key should be stored in bucket KeyBucket with label keyid, where id is number of query.
+// Key should be stored in bucket KeyBucket with label keyid, where id is number of poll.
 // If keyid is not in database, nil is returned.
 // Key is stored in PKCS1 format.
-func GetKey(db *bolt.DB, queryid int) (*rsa.PrivateKey, error) {
+func GetKey(db *bolt.DB, pollid int) (*rsa.PrivateKey, error) {
 	var bkeycpy []byte
 	// Database db should be open before this call.
 	err := db.View(func(tx *bolt.Tx) error {
 		kbuck := tx.Bucket([]byte("KeyBucket"))
-		bkey := kbuck.Get([]byte("key" + strconv.Itoa(queryid)))
+		bkey := kbuck.Get([]byte("key" + strconv.Itoa(pollid)))
 		if bkey == nil {
-			return fmt.Errorf("No key for this query in database.")
+			return fmt.Errorf("No key for this poll in database.")
 		}
 
 		bkeycpy = make([]byte, len(bkey))
@@ -95,105 +102,108 @@ func GetKey(db *bolt.DB, queryid int) (*rsa.PrivateKey, error) {
 		return nil, fmt.Errorf("Failed to convert key from binary: %w", err)
 	}
 	return key, nil
-}
+}*/
 
-// SaveKey saves query key to database.
+// SaveKey saves poll key to database.
 //
-// Key is saved in bucket KeyBucket with label keyid, where id is number of query.
+// Key is saved in bucket KeyBucket with label keyid, where id is number of poll.
 // Key is stored in PKCS1 format.
-func SaveKey(db *bolt.DB, queryid int, key *rsa.PrivateKey) error {
+func SaveKey(db *bolt.DB, pollid int32, key *rsa.PrivateKey) error {
 	bkey := x509.MarshalPKCS1PrivateKey(key)
 	return db.Update(func(tx *bolt.Tx) error {
 		keybuck := tx.Bucket([]byte("KeyBucket"))
-		return keybuck.Put([]byte("key"+strconv.Itoa(queryid)), bkey)
+		return keybuck.Put([]byte("key"+strconv.Itoa(int(pollid))), bkey)
 	})
 }
 
-// NewQuery creates bucket for new query.
+// NewPoll creates bucket for new poll.
 //
-// Return values is an id of query in database and error returned by database.
-func NewQuery(db *bolt.DB) (qid int, err error) {
-	err = db.Update(func(tx *bolt.Tx) error {
-		// All queries are stored in QueriesBucket.
-		queriesbuck := tx.Bucket([]byte("QueriesBucket"))
-		id, _ := queriesbuck.NextSequence()
-		qid = int(id)
+// Return values is an id of poll in database and error returned by database.
+func NewPoll(db *bolt.DB, sch *query.PollSchema) (*query.PollQuestion, error) {
+	poll := &query.PollQuestion{
+		Schema: sch,
+	}
+	err := db.Update(func(tx *bolt.Tx) error {
+		// All polls are stored in PollsBucket.
+		pollsbuck := tx.Bucket([]byte("PollsBucket"))
+		id, _ := pollsbuck.NextSequence()
+		poll.Id = int32(id)
 
-		// Each query is contained in bucket named by its number.
-		qbuck, err := queriesbuck.CreateBucketIfNotExists([]byte("Query" + strconv.Itoa(int(id)) + "Bucket"))
+		// Each poll is contained in bucket named by its number.
+		pbuck, err := pollsbuck.CreateBucketIfNotExists([]byte("Poll" + strconv.Itoa(int(id)) + "Bucket"))
 		if err != nil {
 			return err
 		}
 
-		// Inside of a query bucket there are three buckets:
-		// One for fields, one for tokens, one for votes.
-		_, err = qbuck.CreateBucketIfNotExists([]byte("FieldsBucket"))
+		// Inside of a poll bucket there are three buckets:
+		// One for schema, one for tokens, one for votes.
+		sbuck, err := pbuck.CreateBucketIfNotExists([]byte("SchemaBucket"))
 		if err != nil {
 			return err
 		}
 
-		_, err = qbuck.CreateBucketIfNotExists([]byte("TokensBucket"))
-		if err != nil {
-			return err
-		}
+		for i, qa := range sch.Questions {
+			qbuck, err := sbuck.CreateBucketIfNotExists([]byte("QA" + string(i)))
+			if err != nil {
+				return err
+			}
 
-		_, err = qbuck.CreateBucketIfNotExists([]byte("VotesBucket"))
-		return err
-	})
-	return
-}
+			if !query.IsStringPrintable(qa.Question) {
+				return fmt.Errorf("Error! Question contains nonprintable.")
+			}
+			err = qbuck.Put([]byte("Question"), []byte(qa.Question))
+			if err != nil {
+				return err
+			}
 
-// ModifyQueryField is editing or adding new field to query.
-//
-// Input is number of modified query, number of modified field (-1 is new field) and
-// string with name of this field.
-func ModifyQueryField(db *bolt.DB, queryid int, fieldid int32, name string) error {
-	return db.Update(func(tx *bolt.Tx) error {
-		queriesbuck := tx.Bucket([]byte("QueriesBucket"))
+			if !qa.Type.IsValid() {
+				return fmt.Errorf("Error! Wrong question type.")
+			}
+			qbuck.Put([]byte("Type"), []byte(strconv.Itoa(int(qa.Type))))
+			if err != nil {
+				return err
+			}
 
-		// Each query have its own bucket inside QueriesBucket.
-		qbuck := queriesbuck.Bucket([]byte("Query" + strconv.Itoa(queryid) + "Bucket"))
-		if qbuck == nil {
-			return fmt.Errorf("Wrong Query number: %v", queryid)
-		}
-		fbuck := qbuck.Bucket([]byte("FieldsBucket"))
-
-		id := fieldid
-		// Edit field in query, -1 is a signal of new field.
-		if fieldid == -1 {
-			id64, _ := fbuck.NextSequence()
-			id = int32(id64)
-		} else {
-			field := fbuck.Get([]byte(strconv.Itoa(int(fieldid))))
-			if field == nil {
-				// Not existing field is requested.
-				return fmt.Errorf("Wrong Query field number")
+			qbuck.Put([]byte("Answer"), []byte(qa.Answer))
+			if err != nil {
+				return err
 			}
 		}
 
-		return fbuck.Put([]byte(strconv.Itoa(int(id))), []byte(name))
+		_, err = pbuck.CreateBucketIfNotExists([]byte("TokensBucket"))
+		if err != nil {
+			return err
+		}
+
+		_, err = pbuck.CreateBucketIfNotExists([]byte("VotesBucket"))
+		return err
 	})
+	if err != nil {
+		return &query.PollQuestion{}, err
+	}
+	return poll, err
 }
 
-// GetQuery reads query from database.
-func GetQuery(db *bolt.DB, id int) (query.PollQuestion, error) {
+/*
+// GetPoll reads poll from database.
+func GetPoll(db *bolt.DB, id int) (query.PollQuestion, error) {
 	q := query.PollQuestion{
 		Id: int32(id),
 	}
 	// Database db should be open before this call.
 	err := db.View(func(tx *bolt.Tx) error {
-		queriesbuck := tx.Bucket([]byte("QueriesBucket"))
+		pollsbuck := tx.Bucket([]byte("PollsBucket"))
 
-		qbuck := queriesbuck.Bucket([]byte("Query" + strconv.Itoa(id) + "Bucket"))
+		qbuck := pollsbuck.Bucket([]byte("Poll" + strconv.Itoa(id) + "Bucket"))
 		if qbuck == nil {
-			return fmt.Errorf("Wrong Query number in GetQuery: %v", id)
+			return fmt.Errorf("Wrong Poll number in GetPoll: %v", id)
 		}
 
 		// Fields are stored as pairs (nr, name), where name is a name of this choice.
 		fbuck := qbuck.Bucket([]byte("FieldsBucket"))
 		c := fbuck.Cursor()
 		for k, v := c.First(); k != nil; k, v = c.Next() {
-			f := query.PollQuestion_QueryField{}
+			f := query.PollQuestion_PollField{}
 			f.Name = string(v)
 			q.Fields = append(q.Fields, &f)
 		}
@@ -220,7 +230,7 @@ func GetQuery(db *bolt.DB, id int) (query.PollQuestion, error) {
 			for ki, vi := cins.First(); ki != nil; ki, vi = cins.Next() {
 				val, errins := strconv.Atoi(string(vi))
 				if errins != nil {
-					return fmt.Errorf("Failed to convert answer to number in GetQuery: %w", errins)
+					return fmt.Errorf("Failed to convert answer to number in GetPoll: %w", errins)
 				}
 				vt.Answer = append(vt.Answer, int32(val))
 			}
@@ -231,52 +241,20 @@ func GetQuery(db *bolt.DB, id int) (query.PollQuestion, error) {
 	return q, err
 }
 
-// NewToken checks if token request is valid and return new token.
-func NewToken(db *bolt.DB, in *query.TokenRequest) (*query.VoteToken, error) {
-	t := query.VoteToken{}
-	err := db.Update(func(tx *bolt.Tx) error {
-		queriesbuck := tx.Bucket([]byte("QueriesBucket"))
-
-		qbuck := queriesbuck.Bucket([]byte("Query" + strconv.Itoa(int(in.Pollid)) + "Bucket"))
-		if qbuck == nil {
-			return fmt.Errorf("Wrong Query number in NewToken: %v", in.Pollid)
-		}
-		tbuck := qbuck.Bucket([]byte("TokensBucket"))
-
-		// Token is a sha256 hash of a random number from range [0, 2^1024).
-		max := big.NewInt(2)
-		max = max.Exp(max, big.NewInt(1024), big.NewInt(0))
-		val, err := rand.Int(rand.Reader, max)
-		if err != nil {
-			return err
-		}
-		token := sha256.Sum256(val.Bytes())
-
-		err = tbuck.Put(token[:], []byte{})
-		if err != nil {
-			return err
-		}
-
-		t.Token = token[:]
-		return err
-	})
-	return &t, err
-}
-
 // AcceptToken checks if BallotToSign is matching server informations.
 //
 // Function returns true if token is a token of data[qNum] (provided
-// such query exists). In other case it returns false.
-func AcceptToken(db *bolt.DB, token *query.VoteToken, queryid int32) (res bool, err error) {
+// such poll exists). In other case it returns false.
+func AcceptToken(db *bolt.DB, token *query.VoteToken, pollid int32) (res bool, err error) {
 	err = db.Update(func(tx *bolt.Tx) error {
-		queriesbuck := tx.Bucket([]byte("QueriesBucket"))
+		pollsbuck := tx.Bucket([]byte("PollsBucket"))
 
-		qbuck := queriesbuck.Bucket([]byte("Query" + strconv.Itoa(int(queryid)) + "Bucket"))
+		qbuck := pollsbuck.Bucket([]byte("Poll" + strconv.Itoa(int(pollid)) + "Bucket"))
 
-		// Check if query of number queryid exists.
+		// Check if poll of number pollid exists.
 		if qbuck == nil {
 			res = false
-			return fmt.Errorf("No such query: %v", queryid)
+			return fmt.Errorf("No such poll: %v", pollid)
 		}
 		tbuck := qbuck.Bucket([]byte("TokensBucket"))
 
@@ -300,14 +278,14 @@ func AcceptVote(db *bolt.DB, sv *query.SignedVote) (vr *query.VoteReply, err err
 	vr = &query.VoteReply{}
 	v := sv.Vote
 	err = db.Update(func(tx *bolt.Tx) error {
-		queriesbuck := tx.Bucket([]byte("QueriesBucket"))
+		pollsbuck := tx.Bucket([]byte("PollsBucket"))
 
-		qbuck := queriesbuck.Bucket([]byte("Query" + strconv.Itoa(int(v.Pollid)) + "Bucket"))
+		qbuck := pollsbuck.Bucket([]byte("Poll" + strconv.Itoa(int(v.Pollid)) + "Bucket"))
 
-		// Check if query of number v.Nr exists.
+		// Check if poll of number v.Nr exists.
 		if qbuck == nil {
 			vr.Mess = "Vote error"
-			return fmt.Errorf("No such query: %v", v.Pollid)
+			return fmt.Errorf("No such poll: %v", v.Pollid)
 		}
 		vbuck := qbuck.Bucket([]byte("VotesBucket"))
 		fbuck := qbuck.Bucket([]byte("FieldsBucket"))
@@ -347,4 +325,4 @@ func AcceptVote(db *bolt.DB, sv *query.SignedVote) (vr *query.VoteReply, err err
 	})
 	fmt.Printf("Response: %v", vr)
 	return
-}
+}*/
