@@ -112,7 +112,7 @@ var testsPollInitOutEmpty = []struct {
 	},
 	{
 		exp_out: &query.PollQuestion{},
-		exp_err: fmt.Errorf("Error in PollInit while creating new poll in database: %w", fmt.Errorf("Error! Question contains nonprintable.")),
+		exp_err: fmt.Errorf("Error in PollInit while creating new poll in database: %w", fmt.Errorf("Error! Question contains non valid characters.")),
 	},
 }
 
@@ -165,6 +165,6 @@ var testsPollInitOut1Poll = []struct {
 	},
 	{
 		exp_out: &query.PollQuestion{},
-		exp_err: fmt.Errorf("Error in PollInit while creating new poll in database: %w", fmt.Errorf("Error! Question contains nonprintable.")),
+		exp_err: fmt.Errorf("Error in PollInit while creating new poll in database: %w", fmt.Errorf("Error! Question contains non valid characters.")),
 	},
 }

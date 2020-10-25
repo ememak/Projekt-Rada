@@ -5,7 +5,7 @@ import (
 	"context"
 	"crypto/rand"
 	"crypto/rsa"
-	//"crypto/x509"
+	"crypto/x509"
 	"fmt"
 	"net"
 	"os"
@@ -30,21 +30,17 @@ type server struct {
 	data *bolt.DB
 }
 
-/*
 // GetPoll is function used to exchange server public key for specific poll.
 //
-// As an input function takes GetPollRequest, which contains number of query.
-// If key is not in database (e.g. requested nonexisting query), reply contains empty byte array.
+// As an input function takes GetPollRequest, which contains poll's number.
+// If key or poll are not in database (e.g. requested nonexisting query), reply contains empty answer.
 func (s *server) GetPoll(ctx context.Context, in *query.GetPollRequest) (*query.PollWithPublicKey, error) {
 	key, err := store.GetKey(s.data, int(in.Pollid))
 	if err != nil {
 		err = fmt.Errorf("Error in GetPoll while retrieving key from database: %w", err)
 		return &query.PollWithPublicKey{}, err
 	}
-	var binkey []byte
-	if key != nil {
-		binkey = x509.MarshalPKCS1PublicKey(&key.PublicKey)
-	}
+	binkey := x509.MarshalPKCS1PublicKey(&key.PublicKey)
 
 	poll, err := store.GetPoll(s.data, int(in.Pollid))
 	if err != nil {
@@ -58,7 +54,7 @@ func (s *server) GetPoll(ctx context.Context, in *query.GetPollRequest) (*query.
 		},
 		Poll: poll.Schema,
 	}, nil
-}*/
+}
 
 // PollInit generates new poll and saves it to database.
 //
@@ -73,7 +69,7 @@ func (s *server) PollInit(ctx context.Context, in *query.PollSchema) (*query.Pol
 	if err != nil {
 		return poll, fmt.Errorf("Error in PollInit during key generation: %w", err)
 	}
-	err = store.SaveKey(s.data, poll.Id, key)
+	err = store.SaveKey(s.data, int(poll.Id), key)
 	if err != nil {
 		return poll, fmt.Errorf("Error in PollInit while saving key: %w", err)
 	}

@@ -34,12 +34,14 @@
 //       + VotesBucket
 //
 //         Each vote is stored in a bucket named after ballot used to signing it.
-//         Each QA structure is stored similarily as in SchemaBucket.
+//         PollAnswer structure is stored similarily as PollSchema, but
+//				 apart from QA structures, this bucket also contains second part of RSA sign.
 //         - Ballot
-//           * QAid
-//					 	 + ("Question", question)
-//					 	 + ("Type", type)
-//					   + ("Answer", answer)
+//					 + ("Sign", sign)
+//					 + QAid
+//					 	 * ("Question", question)
+//					 	 * ("Type", type)
+//					 	 * ("Answer", answer)
 // Each number value is stored using strconv.Itoa function.
 package store
 
@@ -57,6 +59,9 @@ import (
 //
 // This function have to be called before any other database related function.
 func DBInit(filename string) (*bolt.DB, error) {
+	if filename == "" || !query.IsStringPrintable(filename) {
+		return nil, fmt.Errorf("Database name invalid\n")
+	}
 	db, err := bolt.Open(filename, 0600, nil)
 	if err != nil {
 		return db, err
@@ -72,7 +77,6 @@ func DBInit(filename string) (*bolt.DB, error) {
 	return db, err
 }
 
-/*
 // GetKey reads key for specific poll from database.
 //
 // Key should be stored in bucket KeyBucket with label keyid, where id is number of poll.
@@ -102,17 +106,23 @@ func GetKey(db *bolt.DB, pollid int) (*rsa.PrivateKey, error) {
 		return nil, fmt.Errorf("Failed to convert key from binary: %w", err)
 	}
 	return key, nil
-}*/
+}
 
 // SaveKey saves poll key to database.
 //
 // Key is saved in bucket KeyBucket with label keyid, where id is number of poll.
 // Key is stored in PKCS1 format.
-func SaveKey(db *bolt.DB, pollid int32, key *rsa.PrivateKey) error {
+func SaveKey(db *bolt.DB, pollid int, key *rsa.PrivateKey) error {
+	if key == nil || key.Validate() != nil {
+		if key == nil {
+			return fmt.Errorf("Error! Private key is nil!")
+		}
+		return key.Validate()
+	}
 	bkey := x509.MarshalPKCS1PrivateKey(key)
 	return db.Update(func(tx *bolt.Tx) error {
 		keybuck := tx.Bucket([]byte("KeyBucket"))
-		return keybuck.Put([]byte("key"+strconv.Itoa(int(pollid))), bkey)
+		return keybuck.Put([]byte("key"+strconv.Itoa(pollid)), bkey)
 	})
 }
 
@@ -149,7 +159,7 @@ func NewPoll(db *bolt.DB, sch *query.PollSchema) (*query.PollQuestion, error) {
 			}
 
 			if !query.IsStringPrintable(qa.Question) {
-				return fmt.Errorf("Error! Question contains nonprintable.")
+				return fmt.Errorf("Error! Question contains non valid characters.")
 			}
 			err = qbuck.Put([]byte("Question"), []byte(qa.Question))
 			if err != nil {
@@ -184,63 +194,91 @@ func NewPoll(db *bolt.DB, sch *query.PollSchema) (*query.PollQuestion, error) {
 	return poll, err
 }
 
-/*
 // GetPoll reads poll from database.
 func GetPoll(db *bolt.DB, id int) (query.PollQuestion, error) {
 	q := query.PollQuestion{
-		Id: int32(id),
+		Id:     int32(id),
+		Schema: &query.PollSchema{},
 	}
 	// Database db should be open before this call.
 	err := db.View(func(tx *bolt.Tx) error {
 		pollsbuck := tx.Bucket([]byte("PollsBucket"))
 
-		qbuck := pollsbuck.Bucket([]byte("Poll" + strconv.Itoa(id) + "Bucket"))
-		if qbuck == nil {
+		pbuck := pollsbuck.Bucket([]byte("Poll" + strconv.Itoa(id) + "Bucket"))
+		if pbuck == nil {
 			return fmt.Errorf("Wrong Poll number in GetPoll: %v", id)
 		}
 
-		// Fields are stored as pairs (nr, name), where name is a name of this choice.
-		fbuck := qbuck.Bucket([]byte("FieldsBucket"))
-		c := fbuck.Cursor()
-		for k, v := c.First(); k != nil; k, v = c.Next() {
-			f := query.PollQuestion_PollField{}
-			f.Name = string(v)
-			q.Fields = append(q.Fields, &f)
-		}
-
-		// Tokens are stored as pairs (token, _), where token is sha256 hash of a random int.
-		tbuck := qbuck.Bucket([]byte("TokensBucket"))
-		c = tbuck.Cursor()
+		// Read Schema stored as an array of buckets with QA structures.
+		sbuck := pbuck.Bucket([]byte("SchemaBucket"))
+		c := sbuck.Cursor()
 		for k, _ := c.First(); k != nil; k, _ = c.Next() {
+			qa := query.PollSchema_QA{}
+			qabuck := sbuck.Bucket(k)
+			qa.Question = string(qabuck.Get([]byte("Question")))
+			inttype, errins := strconv.Atoi(string(qabuck.Get([]byte("Type"))))
+			if errins != nil {
+				return fmt.Errorf("Failed to convert answer to number in GetPoll: %w", errins)
+			}
+			qa.Type = query.PollSchema_QuestionType(inttype)
+			q.Schema.Questions = append(q.Schema.Questions, &qa)
+		}
+		/* not tested or can be tested yet
+		// Tokens are stored as pairs (token, bool), where bool is true if token was not used.
+		// If used == false, token is not read from database.
+		tbuck := pbuck.Bucket([]byte("TokensBucket"))
+		c = tbuck.Cursor()
+		for k, v := c.First(); k != nil; k, v = c.Next() {
 			t := query.VoteToken{}
-			t.Token = k
+			b, errins := strconv.Atoi(string(v))
+			if errins != nil {
+				return fmt.Errorf("Failed to convert answer to number in GetPoll: %w", errins)
+			}
+			if b == 1 {
+				t.Token = k
+			}
 			q.Tokens = append(q.Tokens, &t)
 		}
 
 		// Votes are stored in VotesBucket.
 		// Each vote is a different bucket inside VotesBucket, with name Vote+nr.
-		vbuck := qbuck.Bucket([]byte("VotesBucket"))
+		vbuck := pbuck.Bucket([]byte("VotesBucket"))
 
 		c = vbuck.Cursor()
-		for k, _ := c.First(); k != nil; k, _ = c.Next() {
+		for k, v := c.First(); k != nil; k, v = c.Next() {
 			ansbuck := vbuck.Bucket(k)
-			vt := query.PollQuestion_StoredVote{}
+			pa := query.PollAnswer{}
+			pa.Sign = quert.RSASignature{
+				Ballot: k,
+			}
 
 			cins := ansbuck.Cursor()
-			for ki, vi := cins.First(); ki != nil; ki, vi = cins.Next() {
-				val, errins := strconv.Atoi(string(vi))
-				if errins != nil {
-					return fmt.Errorf("Failed to convert answer to number in GetPoll: %w", errins)
+			for k, v := cins.First(); k != nil; k, v = cins.Next() {
+				if string(k) == "Sign" {
+					pa.Sign.Sign = v
+				} else {
+					qa := query.PollSchema_QA{}
+					qabuck := sbuck.Bucket(k)
+					qa.Question = string(qabuck.Get([]byte("Question")))
+					inttype, errins := strconv.Atoi(string(qabuck.Get([]byte("Type"))))
+					if errins != nil {
+						return fmt.Errorf("Failed to convert answer to number in GetPoll: %w", errins)
+					}
+					qa.Type = query.PollSchema_QuestionType(inttype)
+					qa.Answer = string(qabuck.Get([]byte("Answer")))
+					qa. = string(qabuck.Get([]byte("Answer")))
+					pa.Answer.Questions = append(pa.Answer.Questions, &qa)
 				}
-				vt.Answer = append(vt.Answer, int32(val))
 			}
-			q.Votes = append(q.Votes, &vt)
+			q.Votes = append(q.Votes, &pa)
 		}
+		*/
 		return nil
 	})
 	return q, err
 }
 
+/*
 // AcceptToken checks if BallotToSign is matching server informations.
 //
 // Function returns true if token is a token of data[qNum] (provided
