@@ -123,7 +123,7 @@ message VoteReply {
 message VoteRequest {
   int32 pollid = 1;                 // Which question is answered.
   repeated PollSchema answers = 2;  // Answers to all questions.
-  RSASignature sign = 3;          // RSA blind signature.
+  RSASignature sign = 3;            // RSA blind signature.
 }
 
 // VoteToken is a permission to vote in a specific poll.

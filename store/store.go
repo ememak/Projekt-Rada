@@ -17,13 +17,9 @@
 //     Id in name is its number (starting with 1!).
 //     - PollidBucket
 //
-//       SchemaBucket stores poll questions.
-//			 Each QA structure have its own bucket containing it.
-//       + SchemaBucket
-//         - QAid
-//					 * ("Question", question)
-//					 * ("Type", type)
-//					 * ("Answer", answer)
+//       Schema structure stores poll questions.
+//			 It is stored in database encoded using proto.Marshal function.
+//       + ("Schema", struct)
 //
 //       TokensBucket is storing tokens to poll.
 //       Each is stored as its value as key and bool value specifying if it was used.
@@ -34,14 +30,13 @@
 //       + VotesBucket
 //
 //         Each vote is stored in a bucket named after ballot used to signing it.
-//         PollAnswer structure is stored similarily as PollSchema, but
-//				 apart from QA structures, this bucket also contains second part of RSA sign.
+//				 Ballot and sign are first and second value of RSASignature used in voting.
+//				 Answer is a PollSchema containing questions and answers encoded using
+//				 proto.Marshal function.
 //         - Ballot
 //					 + ("Sign", sign)
-//					 + QAid
-//					 	 * ("Question", question)
-//					 	 * ("Type", type)
-//					 	 * ("Answer", answer)
+//					 + ("Answer", structure)
+//
 // Each number value is stored using strconv.Itoa function.
 package store
 
@@ -52,6 +47,7 @@ import (
 	"strconv"
 
 	"github.com/ememak/Projekt-Rada/query"
+	"github.com/golang/protobuf/proto"
 	bolt "go.etcd.io/bbolt"
 )
 
@@ -82,12 +78,12 @@ func DBInit(filename string) (*bolt.DB, error) {
 // Key should be stored in bucket KeyBucket with label keyid, where id is number of poll.
 // If keyid is not in database, nil is returned.
 // Key is stored in PKCS1 format.
-func GetKey(db *bolt.DB, pollid int) (*rsa.PrivateKey, error) {
+func GetKey(db *bolt.DB, pollid int32) (*rsa.PrivateKey, error) {
 	var bkeycpy []byte
 	// Database db should be open before this call.
 	err := db.View(func(tx *bolt.Tx) error {
 		kbuck := tx.Bucket([]byte("KeyBucket"))
-		bkey := kbuck.Get([]byte("key" + strconv.Itoa(pollid)))
+		bkey := kbuck.Get([]byte("key" + strconv.Itoa(int(pollid))))
 		if bkey == nil {
 			return fmt.Errorf("No key for this poll in database.")
 		}
@@ -113,11 +109,12 @@ func GetKey(db *bolt.DB, pollid int) (*rsa.PrivateKey, error) {
 // Key is saved in bucket KeyBucket with label keyid, where id is number of poll.
 // Key is stored in PKCS1 format.
 func SaveKey(db *bolt.DB, pollid int, key *rsa.PrivateKey) error {
-	if key == nil || key.Validate() != nil {
-		if key == nil {
-			return fmt.Errorf("Error! Private key is nil!")
-		}
-		return key.Validate()
+	if key == nil {
+		return fmt.Errorf("Error! Private key is nil!")
+	}
+
+	if err := key.Validate(); err != nil {
+		return err
 	}
 	bkey := x509.MarshalPKCS1PrivateKey(key)
 	return db.Update(func(tx *bolt.Tx) error {
@@ -145,39 +142,21 @@ func NewPoll(db *bolt.DB, sch *query.PollSchema) (*query.PollQuestion, error) {
 			return err
 		}
 
-		// Inside of a poll bucket there are three buckets:
-		// One for schema, one for tokens, one for votes.
-		sbuck, err := pbuck.CreateBucketIfNotExists([]byte("SchemaBucket"))
+		// Inside of a poll bucket there are two buckets and one value:
+		// Value for schema, buckets for tokens and votes.
+
+		// Check if Schema is valid.
+		if err = sch.IsValid(); err != nil {
+			return err
+		}
+		binschema, err := proto.Marshal(sch)
 		if err != nil {
 			return err
 		}
 
-		for i, qa := range sch.Questions {
-			qbuck, err := sbuck.CreateBucketIfNotExists([]byte("QA" + string(i)))
-			if err != nil {
-				return err
-			}
-
-			if !query.IsStringPrintable(qa.Question) {
-				return fmt.Errorf("Error! Question contains non valid characters.")
-			}
-			err = qbuck.Put([]byte("Question"), []byte(qa.Question))
-			if err != nil {
-				return err
-			}
-
-			if !qa.Type.IsValid() {
-				return fmt.Errorf("Error! Wrong question type.")
-			}
-			qbuck.Put([]byte("Type"), []byte(strconv.Itoa(int(qa.Type))))
-			if err != nil {
-				return err
-			}
-
-			qbuck.Put([]byte("Answer"), []byte(qa.Answer))
-			if err != nil {
-				return err
-			}
+		err = pbuck.Put([]byte("Schema"), binschema)
+		if err != nil {
+			return err
 		}
 
 		_, err = pbuck.CreateBucketIfNotExists([]byte("TokensBucket"))
@@ -195,34 +174,27 @@ func NewPoll(db *bolt.DB, sch *query.PollSchema) (*query.PollQuestion, error) {
 }
 
 // GetPoll reads poll from database.
-func GetPoll(db *bolt.DB, id int) (query.PollQuestion, error) {
+func GetPoll(db *bolt.DB, pollid int32) (query.PollQuestion, error) {
 	q := query.PollQuestion{
-		Id:     int32(id),
+		Id:     pollid,
 		Schema: &query.PollSchema{},
 	}
 	// Database db should be open before this call.
 	err := db.View(func(tx *bolt.Tx) error {
 		pollsbuck := tx.Bucket([]byte("PollsBucket"))
 
-		pbuck := pollsbuck.Bucket([]byte("Poll" + strconv.Itoa(id) + "Bucket"))
+		pbuck := pollsbuck.Bucket([]byte("Poll" + strconv.Itoa(int(pollid)) + "Bucket"))
 		if pbuck == nil {
-			return fmt.Errorf("Wrong Poll number in GetPoll: %v", id)
+			return fmt.Errorf("Poll ID does not exist in database. GetPoll: %v", pollid)
 		}
 
-		// Read Schema stored as an array of buckets with QA structures.
-		sbuck := pbuck.Bucket([]byte("SchemaBucket"))
-		c := sbuck.Cursor()
-		for k, _ := c.First(); k != nil; k, _ = c.Next() {
-			qa := query.PollSchema_QA{}
-			qabuck := sbuck.Bucket(k)
-			qa.Question = string(qabuck.Get([]byte("Question")))
-			inttype, errins := strconv.Atoi(string(qabuck.Get([]byte("Type"))))
-			if errins != nil {
-				return fmt.Errorf("Failed to convert answer to number in GetPoll: %w", errins)
-			}
-			qa.Type = query.PollSchema_QuestionType(inttype)
-			q.Schema.Questions = append(q.Schema.Questions, &qa)
+		// Read Schema stored as bytes converted via proto.Marchal.
+		binschema := pbuck.Get([]byte("Schema"))
+		err := proto.Unmarshal(binschema, q.Schema)
+		if err != nil {
+			return fmt.Errorf("Failed to read schema from database in GetPoll: %w", err)
 		}
+
 		/* not tested or can be tested yet
 		// Tokens are stored as pairs (token, bool), where bool is true if token was not used.
 		// If used == false, token is not read from database.
@@ -278,39 +250,54 @@ func GetPoll(db *bolt.DB, id int) (query.PollQuestion, error) {
 	return q, err
 }
 
-/*
-// AcceptToken checks if BallotToSign is matching server informations.
+// SaveToken saves token for specified poll in database.
 //
-// Function returns true if token is a token of data[qNum] (provided
-// such poll exists). In other case it returns false.
-func AcceptToken(db *bolt.DB, token *query.VoteToken, pollid int32) (res bool, err error) {
-	err = db.Update(func(tx *bolt.Tx) error {
+// Token is represented as byte array.
+func SaveToken(db *bolt.DB, token []byte, pollid int32) error {
+	return db.Update(func(tx *bolt.Tx) error {
 		pollsbuck := tx.Bucket([]byte("PollsBucket"))
 
-		qbuck := pollsbuck.Bucket([]byte("Poll" + strconv.Itoa(int(pollid)) + "Bucket"))
+		pbuck := pollsbuck.Bucket([]byte("Poll" + strconv.Itoa(int(pollid)) + "Bucket"))
+		if pbuck == nil {
+			return fmt.Errorf("Poll ID does not exist in database. SaveToken: %v", pollid)
+		}
+
+		tbuck := pbuck.Bucket([]byte("TokensBucket"))
+		return tbuck.Put(token, []byte("\x01"))
+	})
+}
+
+// AcceptToken checks if token sent by client is valid.
+//
+// Function returns true if token is present in database and
+// if this token was not used before.
+// If returned error is nil, token is accepted.
+func AcceptToken(db *bolt.DB, token *query.VoteToken, pollid int32) error {
+	return db.Update(func(tx *bolt.Tx) error {
+		pollsbuck := tx.Bucket([]byte("PollsBucket"))
+
+		pbuck := pollsbuck.Bucket([]byte("Poll" + strconv.Itoa(int(pollid)) + "Bucket"))
 
 		// Check if poll of number pollid exists.
-		if qbuck == nil {
-			res = false
+		if pbuck == nil {
 			return fmt.Errorf("No such poll: %v", pollid)
 		}
-		tbuck := qbuck.Bucket([]byte("TokensBucket"))
+		tbuck := pbuck.Bucket([]byte("TokensBucket"))
 
 		// We check if requested token exists. If so, v will have one element, else 0.
 		v := tbuck.Get(token.Token)
-		if v != nil {
-			res = true
-			// After use we remove token from database.
-			tbuck.Delete(token.Token)
-		} else {
-			fmt.Print("No such token")
-			res = false
+		if v == nil {
+			return fmt.Errorf("No such token")
 		}
-		return nil
+		if v[0] == 0 {
+			return fmt.Errorf("Token was used before")
+		}
+		// After use we remove token from database by setting its value to 0.
+		return tbuck.Put(token.Token, []byte("\x00"))
 	})
-	return
 }
 
+/*
 // AcceptVote is saving properly signed vote to database.
 func AcceptVote(db *bolt.DB, sv *query.SignedVote) (vr *query.VoteReply, err error) {
 	vr = &query.VoteReply{}

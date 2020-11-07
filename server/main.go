@@ -10,7 +10,7 @@ import (
 	"net"
 	"os"
 
-	//"github.com/ememak/Projekt-Rada/bsign"
+	"github.com/ememak/Projekt-Rada/bsign"
 	"github.com/ememak/Projekt-Rada/query"
 	"github.com/ememak/Projekt-Rada/store"
 	bolt "go.etcd.io/bbolt"
@@ -32,17 +32,17 @@ type server struct {
 
 // GetPoll is function used to exchange server public key for specific poll.
 //
-// As an input function takes GetPollRequest, which contains poll's number.
+// GetPollRequest contains poll's id. This poll will be returned.
 // If key or poll are not in database (e.g. requested nonexisting query), reply contains empty answer.
 func (s *server) GetPoll(ctx context.Context, in *query.GetPollRequest) (*query.PollWithPublicKey, error) {
-	key, err := store.GetKey(s.data, int(in.Pollid))
+	key, err := store.GetKey(s.data, in.Pollid)
 	if err != nil {
 		err = fmt.Errorf("Error in GetPoll while retrieving key from database: %w", err)
 		return &query.PollWithPublicKey{}, err
 	}
 	binkey := x509.MarshalPKCS1PublicKey(&key.PublicKey)
 
-	poll, err := store.GetPoll(s.data, int(in.Pollid))
+	poll, err := store.GetPoll(s.data, in.Pollid)
 	if err != nil {
 		err = fmt.Errorf("Error in GetPoll while retrieving poll from database: %w", err)
 		return &query.PollWithPublicKey{}, err
@@ -78,33 +78,33 @@ func (s *server) PollInit(ctx context.Context, in *query.PollSchema) (*query.Pol
 	return poll, nil
 }
 
-/*
-// QueryAuthorizeVote authorizes a ballot if sent with valid token.
+// SignBallot authorizes a ballot if sent with valid token.
 //
-// Function takes as input message consisting of blinded ballot and
-// token returned by function QueryGetToken if such token was not used before.
-func (s *server) QueryAuthorizeVote(ctx context.Context, in *query.BallotToSign) (*query.SignedBallot, error) {
-	// Check if token and number of query are valid.
-	ok, _ := store.AcceptToken(s.data, in.Token, in.Pollid)
-	if ok == false {
-		return &query.SignedBallot{}, nil
+// Function takes as input message consisting of an envelope (blinded ballot)
+// and a token. Envelope is signed if token is valid.
+func (s *server) SignBallot(ctx context.Context, in *query.EnvelopeToSign) (*query.SignedEnvelope, error) {
+	// Check if token and poll's number are valid.
+	err := store.AcceptToken(s.data, in.Token, in.Pollid)
+	if err != nil {
+		return &query.SignedEnvelope{}, err
 	}
 
-	key, err := store.GetKey(s.data, int(in.Pollid))
+	key, err := store.GetKey(s.data, in.Pollid)
 	if err != nil {
 		fmt.Printf("Error in QueryAuthorizeVote while retrieving key from database: %w", err)
-		return &query.SignedBallot{}, err
+		return &query.SignedEnvelope{}, err
 	}
-	// Server is signing authorized message.
-	sign := bsign.Sign(key, in.Ballot)
-	SM := query.SignedBallot{
-		Ballot: in.Ballot, //may be not necessary
-		Sign:   sign.Bytes(),
+	// Token is valid. Server is signing envelope.
+	sign := bsign.Sign(key, in.Envelope)
+	SM := query.SignedEnvelope{
+		Envelope: in.Envelope, //may be not necessary
+		Sign:     sign.Bytes(),
 	}
 	fmt.Printf("Token valid\n")
 	return &SM, nil
 }
 
+/*
 // QueryVote get signed vote from client, check it's validity and save it.
 //
 // SignedVote on input consists of vote and sign. If sign was used before, vote is overwritten.
