@@ -115,6 +115,16 @@ func TestAcceptToken(t *testing.T) {
 			token := &query.VoteToken{
 				Token: test.token,
 			}
+			pq, err := GetPoll(data, test.pollid)
+			if !reflect.DeepEqual(err, test.gp_err) {
+				t.Errorf("Error %v, want error %v", err, test.gp_err)
+			}
+			if test.st_err == nil {
+				if !proto.Equal(pq.Tokens[0], token) {
+					t.Errorf("Output %v, want output %v", pq.Tokens[0], token)
+				}
+			}
+
 			err = AcceptToken(data, token, test.pollid)
 			if !reflect.DeepEqual(err, test.at_err) {
 				t.Errorf("Error %v, want error %v", err, test.at_err)
@@ -130,11 +140,20 @@ func TestAcceptToken(t *testing.T) {
 		NewPoll(data, testsNewPoll[0].in)
 		err := SaveToken(data, test.token, test.pollid)
 		if !reflect.DeepEqual(err, test.st_err) {
-			t.Errorf("Error %v, want nil error", err, test.st_err)
+			t.Errorf("Error %v, want error %v", err, test.st_err)
 		}
 
 		token := &query.VoteToken{
 			Token: test.token,
+		}
+		pq, err := GetPoll(data, test.pollid)
+		if !reflect.DeepEqual(err, test.gp_err) {
+			t.Errorf("Error %v, want error %v", err, test.gp_err)
+		}
+		if test.st_err == nil {
+			if !proto.Equal(pq.Tokens[0], token) {
+				t.Errorf("Output %v, want output %v", pq.Tokens[0], token)
+			}
 		}
 		err = AcceptToken(data, token, test.pollid)
 		if !reflect.DeepEqual(err, test.at_err) {
@@ -146,4 +165,32 @@ func TestAcceptToken(t *testing.T) {
 		}
 	})
 	data.Close()
+}
+
+func TestSaveVote(t *testing.T) {
+	in := testsSaveVote
+	for i, test := range in {
+
+		data, _ := DBInit("testSV" + strconv.Itoa(i) + ".db")
+		t.Run("Test "+strconv.Itoa(i), func(t *testing.T) {
+			NewPoll(data, testsNewPoll[0].in)
+			vr, err := SaveVote(data, test.in)
+			if !(reflect.DeepEqual(err, test.sv_err) && proto.Equal(vr, test.reply)) {
+				t.Errorf("Output %v, want output %v", vr, test.reply)
+				t.Errorf("Error %v, want error %v", err, test.sv_err)
+			}
+
+			pq, err := GetPoll(data, test.in.Pollid)
+			if !reflect.DeepEqual(err, test.gp_err) {
+				t.Errorf("Error %v, want error %v", err, test.gp_err)
+			}
+			if test.sv_err == nil {
+				if !(proto.Equal(pq.Votes[0].Answers, test.in.Answers) && proto.Equal(pq.Votes[0].Sign, test.in.Sign)) {
+					t.Errorf("Answers %v, want output %v", pq.Votes[0].Answers, test.in.Answers)
+					t.Errorf("Sign %v, want output %v", pq.Votes[0].Sign, test.in.Sign)
+				}
+			}
+		})
+		data.Close()
+	}
 }

@@ -50,7 +50,7 @@ message GetPollRequest {
 
 // PollAnswer is a signed answer to poll questions.
 message PollAnswer {
-  PollSchema answer = 1;
+  PollSchema answers = 1;
   RSASignature sign = 2;
 }
 
@@ -121,9 +121,9 @@ message VoteReply {
 //
 // If the same signature is used twice, vote in system will be replaced.
 message VoteRequest {
-  int32 pollid = 1;                 // Which question is answered.
-  repeated PollSchema answers = 2;  // Answers to all questions.
-  RSASignature sign = 3;            // RSA blind signature.
+  int32 pollid = 1;        // Which poll is answered.
+  PollSchema answers = 2;  // Answers to all questions.
+  RSASignature sign = 3;   // RSA blind signature.
 }
 
 // VoteToken is a permission to vote in a specific poll.

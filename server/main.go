@@ -74,13 +74,12 @@ func (s *server) PollInit(ctx context.Context, in *query.PollSchema) (*query.Pol
 		return poll, fmt.Errorf("Error in PollInit while saving key: %w", err)
 	}
 
-	fmt.Printf("PollInitReceived, id = %v\n", poll.Id)
 	return poll, nil
 }
 
 // SignBallot authorizes a ballot if sent with valid token.
 //
-// Function takes as input message consisting of an envelope (blinded ballot)
+// Function takes as an input message consisting of an envelope (blinded ballot)
 // and a token. Envelope is signed if token is valid.
 func (s *server) SignBallot(ctx context.Context, in *query.EnvelopeToSign) (*query.SignedEnvelope, error) {
 	// Check if token and poll's number are valid.
@@ -91,45 +90,44 @@ func (s *server) SignBallot(ctx context.Context, in *query.EnvelopeToSign) (*que
 
 	key, err := store.GetKey(s.data, in.Pollid)
 	if err != nil {
-		fmt.Printf("Error in QueryAuthorizeVote while retrieving key from database: %w", err)
+		err = fmt.Errorf("Error in SignBallot while retrieving key from database: %w", err)
 		return &query.SignedEnvelope{}, err
 	}
 	// Token is valid. Server is signing envelope.
 	sign := bsign.Sign(key, in.Envelope)
+	if len(sign.Bytes()) == 0 {
+		return &query.SignedEnvelope{}, fmt.Errorf("Error in SignBallot, envelope shouldn't be null")
+	}
 	SM := query.SignedEnvelope{
 		Envelope: in.Envelope, //may be not necessary
 		Sign:     sign.Bytes(),
 	}
-	fmt.Printf("Token valid\n")
 	return &SM, nil
 }
 
-/*
-// QueryVote get signed vote from client, check it's validity and save it.
+// PollVote get signed vote from client, check it's validity and save it.
 //
-// SignedVote on input consists of vote and sign. If sign was used before, vote is overwritten.
-func (s *server) QueryVote(ctx context.Context, in *query.SignedVote) (*query.VoteReply, error) {
-	key, err := store.GetKey(s.data, int(in.Vote.Pollid))
+// VoteRequest on input consists of vote and sign. If sign was used before, vote is overwritten.
+func (s *server) PollVote(ctx context.Context, in *query.VoteRequest) (*query.VoteReply, error) {
+	key, err := store.GetKey(s.data, in.Pollid)
 	if err != nil {
-		err = fmt.Errorf("Error in QueryVote while retrieving key from database: %w", err)
-		return &query.VoteReply{Mess: "Error in QueryVote\n"}, err
+		err = fmt.Errorf("Error in PollVote while retrieving key from database: %w", err)
+		return &query.VoteReply{Mess: "Error in PollVote"}, err
 	}
 	// We have to check if the sign is valid.
-	if bsign.Verify(&key.PublicKey, in.Signm, in.Signmd) == false {
-		return &query.VoteReply{Mess: "Error in QueryVote\n"}, fmt.Errorf("Sign invalid!")
+	if bsign.Verify(&key.PublicKey, in.Sign.Ballot, in.Sign.Sign) == false {
+		return &query.VoteReply{Mess: "Error in PollVote"}, fmt.Errorf("Sign invalid!")
 	}
 
 	// Vote is properly signed, we proceed to voting.
-	vr, err := store.AcceptVote(s.data, in)
+	vr, err := store.SaveVote(s.data, in)
 	if err != nil {
-		err = fmt.Errorf("Error in QueryVote while saving key in database: %w", err)
-		return vr, err
+		err = fmt.Errorf("Error in PollVote while saving key in database: %w", err)
+		return &query.VoteReply{Mess: "Error in PollVote"}, err
 	}
 
-	q, _ := store.GetQuery(s.data, int(in.Vote.Pollid))
-	fmt.Printf("In Memory: %v\n", q)
 	return vr, nil
-}*/
+}
 
 func serverInit(dbfilename string) (*server, error) {
 	var err error

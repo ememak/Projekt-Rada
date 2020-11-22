@@ -18,6 +18,10 @@ func (t *PollSchema) IsValid() error {
 		if !qa.Type.IsValid() {
 			return fmt.Errorf("Error! Wrong question type.")
 		}
+
+		if !IsStringPrintable(qa.Answer) {
+			return fmt.Errorf("Error! Answer contains non valid characters.")
+		}
 	}
 	return nil
 }

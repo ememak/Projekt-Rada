@@ -41,6 +41,7 @@
 package store
 
 import (
+	"bytes"
 	"crypto/rsa"
 	"crypto/x509"
 	"fmt"
@@ -195,18 +196,13 @@ func GetPoll(db *bolt.DB, pollid int32) (query.PollQuestion, error) {
 			return fmt.Errorf("Failed to read schema from database in GetPoll: %w", err)
 		}
 
-		/* not tested or can be tested yet
 		// Tokens are stored as pairs (token, bool), where bool is true if token was not used.
 		// If used == false, token is not read from database.
 		tbuck := pbuck.Bucket([]byte("TokensBucket"))
-		c = tbuck.Cursor()
+		c := tbuck.Cursor()
 		for k, v := c.First(); k != nil; k, v = c.Next() {
 			t := query.VoteToken{}
-			b, errins := strconv.Atoi(string(v))
-			if errins != nil {
-				return fmt.Errorf("Failed to convert answer to number in GetPoll: %w", errins)
-			}
-			if b == 1 {
+			if !bytes.Equal(v, []byte{0}) {
 				t.Token = k
 			}
 			q.Tokens = append(q.Tokens, &t)
@@ -217,34 +213,25 @@ func GetPoll(db *bolt.DB, pollid int32) (query.PollQuestion, error) {
 		vbuck := pbuck.Bucket([]byte("VotesBucket"))
 
 		c = vbuck.Cursor()
-		for k, v := c.First(); k != nil; k, v = c.Next() {
+		for k, _ := c.First(); k != nil; k, _ = c.Next() {
 			ansbuck := vbuck.Bucket(k)
-			pa := query.PollAnswer{}
-			pa.Sign = quert.RSASignature{
+			pa := query.PollAnswer{
+				Answers: &query.PollSchema{},
+			}
+			sign := ansbuck.Get([]byte("Sign"))
+			pa.Sign = &query.RSASignature{
 				Ballot: k,
+				Sign:   sign,
 			}
 
-			cins := ansbuck.Cursor()
-			for k, v := cins.First(); k != nil; k, v = cins.Next() {
-				if string(k) == "Sign" {
-					pa.Sign.Sign = v
-				} else {
-					qa := query.PollSchema_QA{}
-					qabuck := sbuck.Bucket(k)
-					qa.Question = string(qabuck.Get([]byte("Question")))
-					inttype, errins := strconv.Atoi(string(qabuck.Get([]byte("Type"))))
-					if errins != nil {
-						return fmt.Errorf("Failed to convert answer to number in GetPoll: %w", errins)
-					}
-					qa.Type = query.PollSchema_QuestionType(inttype)
-					qa.Answer = string(qabuck.Get([]byte("Answer")))
-					qa. = string(qabuck.Get([]byte("Answer")))
-					pa.Answer.Questions = append(pa.Answer.Questions, &qa)
-				}
+			binans := ansbuck.Get([]byte("Answer"))
+			// Read Answers stored as bytes converted via proto.Marchal.
+			err = proto.Unmarshal(binans, pa.Answers)
+			if err != nil {
+				return fmt.Errorf("Failed to read vote from database in GetPoll: %w", err)
 			}
 			q.Votes = append(q.Votes, &pa)
 		}
-		*/
 		return nil
 	})
 	return q, err
@@ -263,7 +250,7 @@ func SaveToken(db *bolt.DB, token []byte, pollid int32) error {
 		}
 
 		tbuck := pbuck.Bucket([]byte("TokensBucket"))
-		return tbuck.Put(token, []byte("\x01"))
+		return tbuck.Put(token, []byte{1})
 	})
 }
 
@@ -293,61 +280,53 @@ func AcceptToken(db *bolt.DB, token *query.VoteToken, pollid int32) error {
 			return fmt.Errorf("Token was used before")
 		}
 		// After use we remove token from database by setting its value to 0.
-		return tbuck.Put(token.Token, []byte("\x00"))
+		return tbuck.Put(token.Token, []byte{0})
 	})
 }
 
-/*
-// AcceptVote is saving properly signed vote to database.
-func AcceptVote(db *bolt.DB, sv *query.SignedVote) (vr *query.VoteReply, err error) {
-	vr = &query.VoteReply{}
-	v := sv.Vote
-	err = db.Update(func(tx *bolt.Tx) error {
+// SaveVote is saving properly signed vote to database.
+func SaveVote(db *bolt.DB, vr *query.VoteRequest) (*query.VoteReply, error) {
+	reply := &query.VoteReply{}
+	err := db.Update(func(tx *bolt.Tx) error {
 		pollsbuck := tx.Bucket([]byte("PollsBucket"))
 
-		qbuck := pollsbuck.Bucket([]byte("Poll" + strconv.Itoa(int(v.Pollid)) + "Bucket"))
+		pbuck := pollsbuck.Bucket([]byte("Poll" + strconv.Itoa(int(vr.Pollid)) + "Bucket"))
 
-		// Check if poll of number v.Nr exists.
-		if qbuck == nil {
-			vr.Mess = "Vote error"
-			return fmt.Errorf("No such poll: %v", v.Pollid)
+		// Check if poll of number vr.Pollid exists.
+		if pbuck == nil {
+			return fmt.Errorf("No such poll: %v", vr.Pollid)
 		}
-		vbuck := qbuck.Bucket([]byte("VotesBucket"))
-		fbuck := qbuck.Bucket([]byte("FieldsBucket"))
-
-		// Check if answer have good number of fields.
-		c := fbuck.Cursor()
-		nF := 0
-		for k, _ := c.First(); k != nil; k, _ = c.Next() {
-			nF += 1
-		}
-
-		if len(v.Answer) != nF {
-			vr.Mess = "Vote error"
-			return fmt.Errorf("Wrong vote size: %v, wanted: %v", len(v.Answer), nF)
-		}
+		vbuck := pbuck.Bucket([]byte("VotesBucket"))
 
 		// Save vote. Vote is stored as a bucket.
 		// Name of this bucket is ballot used for signing it.
-		newvbuck, errins := vbuck.CreateBucketIfNotExists(sv.Signm)
-
-		if errins != nil {
-			vr.Mess = "Vote error"
-			return errins
+		ansbuck, err := vbuck.CreateBucketIfNotExists(vr.Sign.Ballot)
+		if err != nil {
+			return err
 		}
 
-		// Inside vote bucket are pairs (nr, vote), where vote is int value representing choice.
-		for i := 0; i < nF; i++ {
-			errins := newvbuck.Put([]byte(strconv.Itoa(i)), []byte(strconv.Itoa(int(v.Answer[i]))))
-			if errins != nil {
-				vr.Mess = "Vote error"
-				return errins
-			}
+		err = ansbuck.Put([]byte("Sign"), vr.Sign.Sign)
+		if err != nil {
+			return err
 		}
 
-		vr.Mess = "Thank you for your vote!"
+		// Check if Vote is valid (in sense of valid characters etc.).
+		if err = vr.Answers.IsValid(); err != nil {
+			return err
+		}
+
+		binans, err := proto.Marshal(vr.Answers)
+		if err != nil {
+			return err
+		}
+
+		err = ansbuck.Put([]byte("Answer"), binans)
+		if err != nil {
+			return err
+		}
+
+		reply.Mess = "Thank you for your vote!"
 		return nil
 	})
-	fmt.Printf("Response: %v", vr)
-	return
-}*/
+	return reply, err
+}
