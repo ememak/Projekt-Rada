@@ -23,7 +23,7 @@ const (
 )
 
 // Server type contains server implemented in query/query.proto,
-// data used for cryptography and usage of queries.
+// data used for cryptography and usage of polls.
 type server struct {
 	query.UnimplementedQueryServer
 
@@ -33,7 +33,7 @@ type server struct {
 // GetPoll is function used to exchange server public key for specific poll.
 //
 // GetPollRequest contains poll's id. This poll will be returned.
-// If key or poll are not in database (e.g. requested nonexisting query), reply contains empty answer.
+// If key or poll are not in database (e.g. requested nonexisting poll), reply contains empty answer.
 func (s *server) GetPoll(ctx context.Context, in *query.GetPollRequest) (*query.PollWithPublicKey, error) {
 	key, err := store.GetKey(s.data, in.Pollid)
 	if err != nil {
@@ -82,7 +82,7 @@ func (s *server) PollInit(ctx context.Context, in *query.PollSchema) (*query.Pol
 // Function takes as an input message consisting of an envelope (blinded ballot)
 // and a token. Envelope is signed if token is valid.
 func (s *server) SignBallot(ctx context.Context, in *query.EnvelopeToSign) (*query.SignedEnvelope, error) {
-	// Check if token and poll's number are valid.
+	// Check if token and polls number are valid.
 	err := store.AcceptToken(s.data, in.Token, in.Pollid)
 	if err != nil {
 		return &query.SignedEnvelope{}, err
@@ -116,7 +116,8 @@ func (s *server) PollVote(ctx context.Context, in *query.VoteRequest) (*query.Vo
 	}
 	// We have to check if the sign is valid.
 	if bsign.Verify(&key.PublicKey, in.Sign.Ballot, in.Sign.Sign) == false {
-		return &query.VoteReply{Mess: "Error in PollVote"}, fmt.Errorf("Sign invalid!")
+		err = fmt.Errorf("Error in PollVte, Sign invalid!")
+		return &query.VoteReply{Mess: "Error in PollVote"}, err
 	}
 
 	// Vote is properly signed, we proceed to voting.

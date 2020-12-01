@@ -452,7 +452,7 @@ var testsPollVote = []struct {
 		exp_out: &query.VoteReply{
 			Mess: "Error in PollVote",
 		},
-		exp_err: fmt.Errorf("Sign invalid!"),
+		exp_err: fmt.Errorf("Error in PollVte, Sign invalid!"),
 	},
 	{ // test4 - negative, wrong characters
 		schema: &query.PollSchema{},
@@ -543,7 +543,7 @@ var testsPollVote = []struct {
 	},
 }
 
-var testsAllProtocol = struct {
+var testsEntireProtocol = struct {
 	pollreq  *query.GetPollRequest
 	schema   *query.PollSchema
 	envelope *query.EnvelopeToSign

@@ -18,7 +18,7 @@
 //     - PollidBucket
 //
 //       Schema structure stores poll questions.
-//			 It is stored in database encoded using proto.Marshal function.
+//       It is stored in database encoded using proto.Marshal function.
 //       + ("Schema", struct)
 //
 //       TokensBucket is storing tokens to poll.
@@ -30,12 +30,12 @@
 //       + VotesBucket
 //
 //         Each vote is stored in a bucket named after ballot used to signing it.
-//				 Ballot and sign are first and second value of RSASignature used in voting.
-//				 Answer is a PollSchema containing questions and answers encoded using
-//				 proto.Marshal function.
+//         Ballot and sign are first and second value of RSASignature used in voting.
+//         Answer is a PollSchema containing questions and answers encoded using
+//         proto.Marshal function.
 //         - Ballot
-//					 + ("Sign", sign)
-//					 + ("Answer", structure)
+//           + ("Sign", sign)
+//           + ("Answer", structure)
 //
 // Each number value is stored using strconv.Itoa function.
 package store

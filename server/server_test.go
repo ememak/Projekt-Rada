@@ -123,8 +123,8 @@ func TestPollVote(t *testing.T) {
 	}
 }
 
-func TestAllProtocol(t *testing.T) {
-	test := testsAllProtocol
+func TestEntireProtocol(t *testing.T) {
+	test := testsEntireProtocol
 	t.Run("Full Test", func(t *testing.T) {
 		s, err := serverInit("testAP.db")
 		if err != nil {
