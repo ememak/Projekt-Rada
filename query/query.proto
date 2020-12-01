@@ -3,76 +3,132 @@ syntax = "proto3";
 package query;
 
 service Query {
-  rpc Hello(HelloRequest) returns (HelloReply) {
+  // GetPoll is a function used to exchange server public key for specific poll.
+  rpc GetPoll(GetPollRequest) returns (PollWithPublicKey) {
   }
-  rpc QueryInit(stream Field) returns (PollQuestion) {
-  }  // this will probably not return PollQuestion in the end
-  rpc QueryGetToken(TokenRequest) returns (VoteToken) {
+
+  // PollInit generates new poll.
+  rpc PollInit(PollSchema) returns (PollQuestion) {
   }
-  rpc QueryAuthorizeVote(MessageToSign) returns (SignedMessage) {
+
+  // SignBallot authorizes a ballot if sent with valid token.
+  rpc SignBallot(EnvelopeToSign) returns (SignedEnvelope) {
   }
-  rpc QueryVote(SignedVote) returns (VoteReply) {
+
+  // PollVote get a signed vote from client, check its validity and saves it.
+  rpc PollVote(VoteRequest) returns (VoteReply) {
   }
 }
 
-message HelloRequest {
-}
-
-message HelloReply {
-  string mess = 1;
-  bytes N = 2;
-  int32 e = 3;
-}
-
-message Field {
-  int32 which = 1;  // which field we edit, -1 = new field in query
-  string name = 2;  // query option
-}
-
-message MessageToSign {
-  bytes mess = 1;
-  int32 nr = 2;
+// EnvelopeToSign exchange token for authorizing a ballot.
+//
+// Envelope is a blinded ballot which after authorizing
+// is used for voting in specific poll.
+// If token is valid for this poll, envelope will be signed.
+message EnvelopeToSign {
+  bytes envelope = 1;
+  int32 pollid = 2;
   VoteToken token = 3;
 }
 
+// PollWithPublicKey contains RSA public key and questions of previously requested poll.
+//
+// Key is further used in blind signature scheme.
+// Poll contains only questions and their types.
+message PollWithPublicKey {
+  PublicKey key = 1;
+  PollSchema poll = 2;
+}
+
+// GetPollRequest is used to ask for RSA public key and questions of a specific poll.
+//
+// Key is further used in blind signature scheme.
+// GetPoll is supposed to be called at the beginning of the protocol.
+message GetPollRequest {
+  int32 pollid = 1;
+}
+
+// PollAnswer is a signed answer to poll questions.
+message PollAnswer {
+  PollSchema answers = 1;
+  RSASignature sign = 2;
+}
+
+// PollSchema contains poll's questions and answers.
+message PollSchema {
+  enum QuestionType {
+    OPEN = 0; // User can write what he want.
+    CHECKBOX = 1; // User have to choose some options from a list.
+    CLOSE = 2; // User have to choose one option from a list.
+  }
+
+  message QA {
+    string question = 1;
+    QuestionType type = 2;
+    string answer = 3;
+  }
+
+  repeated QA questions = 1;
+}
+
+// PolLQuestion represents one specific poll.
+//
+// Structure contains its id, options for voting,
+// unused tokens for authorizing votes and accepted votes.
 message PollQuestion {
   int32 id = 1;
 
-  message QueryField {
-    string name = 1;
-    int32 votes = 2;
-  }
-
-  repeated QueryField fields = 2;
+  PollSchema schema = 2;
 
   repeated VoteToken tokens = 3;
+
+  repeated PollAnswer votes = 4;
 }
 
-message TokenRequest {
-  int32 nr = 1;
+// PublicKey is a RSA public key stored in PKCS1 format.
+message PublicKey {
+  bytes key = 1;
 }
 
-message SignedMessage {
-  bytes mess = 1;
+// RSASignature contains final RSA sign.
+//
+// Sign is valid if hash(ballot) == sign^e mod N.
+// Pair (N, e) above is a RSA public key for a specific poll.
+message RSASignature {
+  bytes ballot = 1;
   bytes sign = 2;
 }
 
-// SignedVote is a final vote with RSA sign.
-message SignedVote {
-  Vote vote = 1;    // vote
-  bytes signm = 2;  // Mess, first part of sign
-  bytes signmd = 3; // hash(Mess)^d mod N, second part of sign
+// SignedEnvelope is an authorized respond to EnvelopeToSign.
+//
+// Envelope is the same value as in EnvelopeToSign.
+// Sign is (envelope^d) mod N, message signed by server. This value is
+// further used as second part of the signature in VoteRequest.
+message SignedEnvelope {
+  bytes envelope = 1;
+  bytes sign = 2;
 }
 
-message Vote {
-  int32 nr = 1;               // which question
-  repeated int32 answer = 2;  // >=1 answer mean 'yes', for now
-}
-
+// VoteReply is a sent after voting.
+//
+// If vote was accepted by server, reply is "Thank you for your vote!",
+// else it's "Vote error", without specifying the reason of failure.
 message VoteReply {
   string mess = 1;
 }
 
+// VoteRequest is a final vote with RSA signature.
+//
+// If the same signature is used twice, vote in system will be replaced.
+message VoteRequest {
+  int32 pollid = 1;        // Which poll is answered.
+  PollSchema answers = 2;  // Answers to all questions.
+  RSASignature sign = 3;   // RSA blind signature.
+}
+
+// VoteToken is a permission to vote in a specific poll.
+//
+// Token value inside is random number (it only have to be unique).
 message VoteToken {
-  int32 token = 1;
+  bytes token = 1;
 }

@@ -5,13 +5,15 @@ import (
 	"context"
 	"crypto/rand"
 	"crypto/rsa"
+	"crypto/x509"
 	"fmt"
-	"io"
 	"net"
+	"os"
 
 	"github.com/ememak/Projekt-Rada/bsign"
-	"github.com/ememak/Projekt-Rada/logic"
 	"github.com/ememak/Projekt-Rada/query"
+	"github.com/ememak/Projekt-Rada/store"
+	bolt "go.etcd.io/bbolt"
 	"google.golang.org/grpc"
 )
 
@@ -21,128 +23,140 @@ const (
 )
 
 // Server type contains server implemented in query/query.proto,
-// data used for cryptography and usage of queries.
+// data used for cryptography and usage of polls.
 type server struct {
 	query.UnimplementedQueryServer
 
-	// RSA key for signature validation
-	key     *rsa.PrivateKey
-	queries []query.PollQuestion
+	data *bolt.DB
 }
 
-// Hello is function used to exchange server public key.
+// GetPoll is function used to exchange server public key for specific poll.
 //
-// As an input function takes HelloRequest, which defined in query/query.proto.
-func (s *server) Hello(ctx context.Context, in *query.HelloRequest) (*query.HelloReply, error) {
-	return &query.HelloReply{
-		Mess: "Hello World!\n",
-		N:    s.key.PublicKey.N.Bytes(),
-		E:    int32(s.key.PublicKey.E),
+// GetPollRequest contains poll's id. This poll will be returned.
+// If key or poll are not in database (e.g. requested nonexisting poll), reply contains empty answer.
+func (s *server) GetPoll(ctx context.Context, in *query.GetPollRequest) (*query.PollWithPublicKey, error) {
+	key, err := store.GetKey(s.data, in.Pollid)
+	if err != nil {
+		err = fmt.Errorf("Error in GetPoll while retrieving key from database: %w", err)
+		return &query.PollWithPublicKey{}, err
+	}
+	binkey := x509.MarshalPKCS1PublicKey(&key.PublicKey)
+
+	poll, err := store.GetPoll(s.data, in.Pollid)
+	if err != nil {
+		err = fmt.Errorf("Error in GetPoll while retrieving poll from database: %w", err)
+		return &query.PollWithPublicKey{}, err
+	}
+
+	return &query.PollWithPublicKey{
+		Key: &query.PublicKey{
+			Key: binkey,
+		},
+		Poll: poll.Schema,
 	}, nil
 }
 
-// QueryInit generates new query.
+// PollInit generates new poll and saves it to database.
 //
-// Questions are passed from client to server as stream of Field messages
-// defined in query.proto.
-func (s *server) QueryInit(stream query.Query_QueryInitServer) error {
-	// Make new Query
-	q := query.PollQuestion{
-		Id:     int32(len(s.queries)),
-		Fields: []*query.PollQuestion_QueryField{},
+// Questions and their types are passed in input parameter.
+func (s *server) PollInit(ctx context.Context, in *query.PollSchema) (*query.PollQuestion, error) {
+	poll, err := store.NewPoll(s.data, in)
+	if err != nil {
+		return poll, fmt.Errorf("Error in PollInit while creating new poll in database: %w", err)
 	}
-	fmt.Printf("QueryInitReceived, id = %v\n", len(s.queries))
 
-	for {
-		field, err := stream.Recv()
-		// End of stream, we are saving new query.
-		if err == io.EOF {
-			s.queries = append(s.queries, q)
-			fmt.Printf("Sending back: %v\n", q)
-			fmt.Printf("In Memory: %v\n", s.queries)
-			return stream.SendAndClose(&q)
-		}
-		if err != nil {
-			return err
-		}
-		// Edit field in query, -1 is a signal of new field.
-		if field.Which == -1 {
-			q.Fields = append(q.Fields,
-				&query.PollQuestion_QueryField{
-					Name:  field.Name,
-					Votes: 0,
-				})
-		} else if field.Which < int32(len(q.Fields)) && field.Which >= 0 {
-			q.Fields[field.Which].Name = field.Name
-		} else {
-			fmt.Printf("Wrong Query field number\n")
-		}
+	key, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		return poll, fmt.Errorf("Error in PollInit during key generation: %w", err)
 	}
+	err = store.SaveKey(s.data, int(poll.Id), key)
+	if err != nil {
+		return poll, fmt.Errorf("Error in PollInit while saving key: %w", err)
+	}
+
+	return poll, nil
 }
 
-// QueryGetToken generates token used to authorize ballot.
-func (s *server) QueryGetToken(ctx context.Context, in *query.TokenRequest) (*query.VoteToken, error) {
-	t := query.VoteToken{}
-	if in.Nr < 0 || in.Nr >= int32(len(s.queries)) {
-		fmt.Printf("Wrong Query number in Get Token\n")
-		return &t, nil
-	}
-	t.Token = int32(len(s.queries[in.Nr].Tokens) + 1)
-	s.queries[in.Nr].Tokens = append(s.queries[in.Nr].Tokens, &t)
-	fmt.Printf("GetToken, in Memory: %v\n", s.queries)
-	return &t, nil
-}
-
-// QueryAuthorizeVote authorizes a ballot if sent with valid token.
+// SignBallot authorizes a ballot if sent with valid token.
 //
-// Function takes as input message consisting of blinded ballot and
-// token returned by function QueryGetToken if such token was not used before.
-func (s *server) QueryAuthorizeVote(ctx context.Context, in *query.MessageToSign) (*query.SignedMessage, error) {
-	// Check if token and number of query are valid.
-	ok := logic.AcceptToken(in.Token, in.Nr, s.queries)
-	if ok == false {
-		return &query.SignedMessage{}, nil
+// Function takes as an input message consisting of an envelope (blinded ballot)
+// and a token. Envelope is signed if token is valid.
+func (s *server) SignBallot(ctx context.Context, in *query.EnvelopeToSign) (*query.SignedEnvelope, error) {
+	// Check if token and polls number are valid.
+	err := store.AcceptToken(s.data, in.Token, in.Pollid)
+	if err != nil {
+		return &query.SignedEnvelope{}, err
 	}
 
-	// Server is signing authorized message.
-	sign := bsign.Sign(s.key, in.Mess)
-	SM := query.SignedMessage{
-		Mess: in.Mess, //may be not necessary
-		Sign: sign.Bytes(),
+	key, err := store.GetKey(s.data, in.Pollid)
+	if err != nil {
+		err = fmt.Errorf("Error in SignBallot while retrieving key from database: %w", err)
+		return &query.SignedEnvelope{}, err
 	}
-	fmt.Printf("Token valid\n")
+	// Token is valid. Server is signing envelope.
+	sign := bsign.Sign(key, in.Envelope)
+	if len(sign.Bytes()) == 0 {
+		return &query.SignedEnvelope{}, fmt.Errorf("Error in SignBallot, envelope shouldn't be null")
+	}
+	SM := query.SignedEnvelope{
+		Envelope: in.Envelope, //may be not necessary
+		Sign:     sign.Bytes(),
+	}
 	return &SM, nil
 }
 
-// QueryVote get signed vote from client and check it's validity.
-func (s *server) QueryVote(ctx context.Context, in *query.SignedVote) (*query.VoteReply, error) {
+// PollVote get signed vote from client, check it's validity and save it.
+//
+// VoteRequest on input consists of vote and sign. If sign was used before, vote is overwritten.
+func (s *server) PollVote(ctx context.Context, in *query.VoteRequest) (*query.VoteReply, error) {
+	key, err := store.GetKey(s.data, in.Pollid)
+	if err != nil {
+		err = fmt.Errorf("Error in PollVote while retrieving key from database: %w", err)
+		return &query.VoteReply{Mess: "Error in PollVote"}, err
+	}
 	// We have to check if the sign is valid.
-	if !bsign.Verify(&s.key.PublicKey, in.Signm, in.Signmd) { //check if sign is ok
-		fmt.Printf("Sign invalid!\n")
-		return &query.VoteReply{Mess: "Sign invalid!\n"}, nil
+	if bsign.Verify(&key.PublicKey, in.Sign.Ballot, in.Sign.Sign) == false {
+		err = fmt.Errorf("Error in PollVte, Sign invalid!")
+		return &query.VoteReply{Mess: "Error in PollVote"}, err
 	}
 
 	// Vote is properly signed, we proceed to voting.
-	return logic.AcceptVote(in.Vote, s.queries)
+	vr, err := store.SaveVote(s.data, in)
+	if err != nil {
+		err = fmt.Errorf("Error in PollVote while saving key in database: %w", err)
+		return &query.VoteReply{Mess: "Error in PollVote"}, err
+	}
+
+	return vr, nil
 }
 
-func serverInit() *server {
+func serverInit(dbfilename string) (*server, error) {
 	var err error
 	s := &server{}
-	s.key, err = rsa.GenerateKey(rand.Reader, 2048)
+
+	s.data, err = store.DBInit(dbfilename)
 	if err != nil {
-		fmt.Printf("failed to generate key: %v", err)
+		err = fmt.Errorf("Error in serverInit, failed to initialise database: %w", err)
 	}
-	s.key.Precompute()
-	return s
+	return s, err
 }
 
 func main() {
 	rec, err := net.Listen("tcp", port)
 	if err != nil {
-		fmt.Printf("failed to listen: %v", err)
+		fmt.Printf("Server failed to listen: %v", err)
+		os.Exit(1)
 	}
+
 	s := grpc.NewServer()
-	query.RegisterQueryServer(s, serverInit())
+	service, err := serverInit("data.db")
+	if err != nil {
+		fmt.Printf("Error in serverInit: %v", err)
+		os.Exit(1)
+	}
+
+	defer service.data.Close()
+	query.RegisterQueryServer(s, service)
+
 	s.Serve(rec)
 }
