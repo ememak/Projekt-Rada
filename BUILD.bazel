@@ -7,3 +7,5 @@ gazelle(name = "gazelle")
 buildifier(
     name = "buildifier",
 )
+
+exports_files(["tsconfig.json"])
