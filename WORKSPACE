@@ -37,9 +37,9 @@ gazelle_dependencies()
 # Imports Protobuf and gRPC rules.
 http_archive(
     name = "com_google_protobuf",
-    sha256 = "28142997c912f9b27758489b7bbac615f35fdbee693311693282d19d8dbdecfc",
-    strip_prefix = "protobuf-master",
-    urls = ["https://github.com/protocolbuffers/protobuf/archive/master.zip"],
+    sha256 = "1c744a6a1f2c901e68c5521bc275e22bdc66256eeb605c2781923365b7087e5f",
+    strip_prefix = "protobuf-3.13.0",
+    urls = ["https://github.com/protocolbuffers/protobuf/archive/v3.13.0.zip"],
 )
 
 load("@com_google_protobuf//:protobuf_deps.bzl", "protobuf_deps")
@@ -49,8 +49,8 @@ protobuf_deps()
 # Imports Builifier (BUILD files autofixer).
 http_archive(
     name = "com_github_bazelbuild_buildtools",
-    strip_prefix = "buildtools-master",
-    url = "https://github.com/bazelbuild/buildtools/archive/master.zip",
+    strip_prefix = "buildtools-3.5.0",
+    url = "https://github.com/bazelbuild/buildtools/archive/v3.5.0.zip",
 )
 
 # Go dependencies.
