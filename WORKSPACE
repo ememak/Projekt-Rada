@@ -1,3 +1,12 @@
+# ESModule imports (and TypeScript imports) can be absolute starting with the
+# workspace name. The name of the workspace should match the npm package where
+# we publish, so that these imports also make sense when referencing the
+# published package.
+workspace(
+    name = "Projekt_Rada",
+    managed_directories = {"@npm": ["node_modules"]},
+)
+
 # Imports Go toolchain and rules.
 load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 
@@ -32,9 +41,9 @@ gazelle_dependencies()
 # Imports Protobuf and gRPC rules.
 http_archive(
     name = "com_google_protobuf",
-    sha256 = "28142997c912f9b27758489b7bbac615f35fdbee693311693282d19d8dbdecfc",
-    strip_prefix = "protobuf-master",
-    urls = ["https://github.com/protocolbuffers/protobuf/archive/master.zip"],
+    sha256 = "1c744a6a1f2c901e68c5521bc275e22bdc66256eeb605c2781923365b7087e5f",
+    strip_prefix = "protobuf-3.13.0",
+    urls = ["https://github.com/protocolbuffers/protobuf/archive/v3.13.0.zip"],
 )
 
 load("@com_google_protobuf//:protobuf_deps.bzl", "protobuf_deps")
@@ -44,8 +53,8 @@ protobuf_deps()
 # Imports Builifier (BUILD files autofixer).
 http_archive(
     name = "com_github_bazelbuild_buildtools",
-    strip_prefix = "buildtools-master",
-    url = "https://github.com/bazelbuild/buildtools/archive/master.zip",
+    strip_prefix = "buildtools-3.5.0",
+    url = "https://github.com/bazelbuild/buildtools/archive/v3.5.0.zip",
 )
 
 # Go dependencies.
@@ -84,3 +93,32 @@ go_repository(
     sum = "h1:Ejskq+SyPohKW+1uil0JJMtmHCgJPJ/qWTxr8qp+R4c=",
     version = "v1.4.3",
 )
+
+# Fetch rules_nodejs so we can install our npm dependencies
+http_archive(
+    name = "build_bazel_rules_nodejs",
+    sha256 = "6142e9586162b179fdd570a55e50d1332e7d9c030efd853453438d607569721d",
+    urls = ["https://github.com/bazelbuild/rules_nodejs/releases/download/3.0.0/rules_nodejs-3.0.0.tar.gz"],
+)
+
+# Check the bazel version and download npm dependencies
+load("@build_bazel_rules_nodejs//:index.bzl", "yarn_install")
+
+# Setup the Node.js toolchain & install our npm dependencies into @npm
+yarn_install(
+    name = "npm",
+    package_json = "//:package.json",
+    yarn_lock = "//:yarn.lock",
+)
+
+# Load karma_web_test dependencies
+http_archive(
+    name = "io_bazel_rules_webtesting",
+    sha256 = "9bb461d5ef08e850025480bab185fd269242d4e533bca75bfb748001ceb343c3",
+    urls = ["https://github.com/bazelbuild/rules_webtesting/releases/download/0.3.3/rules_webtesting.tar.gz"],
+)
+
+# Setup the rules_webtesting toolchain
+load("@io_bazel_rules_webtesting//web:repositories.bzl", "web_test_repositories")
+
+web_test_repositories()
