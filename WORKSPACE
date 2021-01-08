@@ -94,6 +94,33 @@ go_repository(
     version = "v1.4.3",
 )
 
+go_repository(
+  name = "com_github_improbable-eng_grpc-web",
+  importpath = "github.com/improbable-eng/grpc-web",
+  sum = "h1:7XqtaBWaOCH0cVGKHyvhtcuo6fgW32Y10yRKrDHFHOc=",
+  version = "v0.13.0",
+)
+
+go_repository(
+  name = "com_github_gorilla_websocket",
+  importpath = "github.com/gorilla/websocket",
+  sum = "h1:+/TMaTYc4QFitKJxsQ7Yye35DkWvkdLcvGKqM+x0Ufc=",
+  version = "v1.4.2",
+)
+
+go_repository(
+  name = "com_github_rs_cors",
+  importpath = "github.com/rs/cors",
+  sum = "h1:+88SsELBHx5r+hZ8TCkggzSstaWNbDvThkVK8H6f9ik=",
+  version = "v1.7.0",
+)
+
+go_repository(
+  name = "com_github_desertbit_timer",
+  importpath = "github.com/desertbit/timer",
+  commit = "c41aec40b27f0eeb2b94300fffcd624c69b02990"
+)
+
 # Fetch rules_nodejs so we can install our npm dependencies
 http_archive(
     name = "build_bazel_rules_nodejs",
@@ -109,6 +136,7 @@ yarn_install(
     name = "npm",
     package_json = "//:package.json",
     yarn_lock = "//:yarn.lock",
+    frozen_lockfile = False,
 )
 
 # Load karma_web_test dependencies

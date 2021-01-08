@@ -8,11 +8,13 @@ import (
 	"crypto/x509"
 	"fmt"
 	"net"
+	"net/http"
 	"os"
 
 	"github.com/ememak/Projekt-Rada/bsign"
 	"github.com/ememak/Projekt-Rada/query"
 	"github.com/ememak/Projekt-Rada/store"
+	"github.com/improbable-eng/grpc-web/go/grpcweb"
 	bolt "go.etcd.io/bbolt"
 	"google.golang.org/grpc"
 )
@@ -158,5 +160,14 @@ func main() {
 	defer service.data.Close()
 	query.RegisterQueryServer(s, service)
 
+	wrappedGrpc := grpcweb.WrapServer(s)
+	h1 := http.HandlerFunc(func(resp http.ResponseWriter, req *http.Request) {
+		if wrappedGrpc.IsGrpcWebRequest(req) {
+			wrappedGrpc.ServeHTTP(resp, req)
+		}
+		// Fall back to other servers.
+		http.DefaultServeMux.ServeHTTP(resp, req)
+	})
+	http.HandleFunc("/", h1)
 	s.Serve(rec)
 }

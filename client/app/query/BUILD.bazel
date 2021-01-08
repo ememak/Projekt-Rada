@@ -1,0 +1,18 @@
+load("@build_bazel_rules_nodejs//:index.bzl", "js_library")
+package(default_visibility = ["//:__subpackages__"])
+
+js_library(
+    name = "query_pb",
+    srcs = [
+        ":query_pb.js",
+        ":query_pb.d.ts",
+    ],
+)
+
+js_library(
+    name = "query_pb_service",
+    srcs = [
+        ":query_pb_service.js",
+        ":query_pb_service.d.ts",
+    ],
+)
