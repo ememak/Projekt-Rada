@@ -1,38 +1,35 @@
 import { Component } from '@angular/core';
 
-import {grpc} from '@improbable-eng/grpc-web';
-import {Query} from "./query/query_pb_service";
-import {PollSchema} from "./query/query_pb";
+import { grpc } from '@improbable-eng/grpc-web';
+import { Query } from "Projekt_Rada/query/query_pb_service";
+import { PollSchema } from "Projekt_Rada/query/query_pb";
 
+const host = "http://localhost:12345";
 
 @Component({
   selector: 'app-root',
   templateUrl: './app.component.html',
   styleUrls: [ './app.component.css' ]
 })
-export class AppComponent  {}
-
-const host = "http://localhost:12345";
-
-function pollInit() {
-  const schema = new PollSchema();
-  grpc.unary(Query.PollInit, {
-    request: schema,
-    host: host,
-    onEnd: res => {
-      const { status, statusMessage, headers, message, trailers } = res;
-      console.log("pollInit.onEnd.status", status, statusMessage);
-      console.log("pollInit.onEnd.headers", headers);
-      if (status === grpc.Code.OK && message) {
-        console.log("pollInit.onEnd.message", message.toObject());
+export class AppComponent  {
+  pollInit() {
+    const schema = new PollSchema();
+    console.log(schema)
+    grpc.unary(Query.PollInit, {
+      request: schema,
+      host: host,
+      onEnd: res => {
+        const { status, statusMessage, headers, message, trailers } = res;
+        console.log("pollInit.onEnd.status", status, statusMessage);
+        console.log("pollInit.onEnd.headers", headers);
+        if (status === grpc.Code.OK && message) {
+          console.log("pollInit.onEnd.message", message.toObject());
+        }
+        console.log("pollInit.onEnd.trailers", trailers);
       }
-      console.log("pollInit.onEnd.trailers", trailers);
-    }
-  });
+    });
+  }
 }
-
-pollInit();
-
 
 /*
 Copyright Google LLC. All Rights Reserved.

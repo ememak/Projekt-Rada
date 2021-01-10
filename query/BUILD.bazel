@@ -1,6 +1,9 @@
 load("@rules_proto//proto:defs.bzl", "proto_library")
 load("@io_bazel_rules_go//go:def.bzl", "go_library")
 load("@io_bazel_rules_go//proto:def.bzl", "go_proto_library")
+load("@rules_typescript_proto//:index.bzl", "typescript_proto_library", "typescript_grpc_web_library")
+
+package(default_visibility = ["//:__subpackages__"])
 
 go_library(
     name = "go_default_library",
@@ -22,4 +25,20 @@ go_proto_library(
     importpath = "github.com/ememak/Projekt-Rada/query",
     proto = ":query_proto",
     visibility = ["//visibility:public"],
+)
+
+proto_library(
+    name = "query_proto_ts",
+    srcs = ["query.proto"],
+    visibility = ["//visibility:public"],
+)
+
+typescript_proto_library(
+    name = "query_ts_proto",
+    proto = ":query_proto_ts",
+)
+
+typescript_grpc_web_library(
+    name = "query_ts_grpc_web",
+    proto = ":query_proto_ts",
 )

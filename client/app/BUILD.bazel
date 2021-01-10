@@ -17,6 +17,8 @@ ng_ts_library(
     ),
     tsconfig = "//:tsconfig.json",
     deps = [
+        "//query:query_ts_proto",
+        "//query:query_ts_grpc_web",
         ":products",
         "@npm//@angular/core",
         "@npm//@angular/forms",
@@ -24,8 +26,6 @@ ng_ts_library(
         "@npm//@angular/router",
         "@npm//@improbable-eng/grpc-web",
         "@npm//google-protobuf",
-        "//client/app/query:query_pb",
-        "//client/app/query:query_pb_service",
     ],
 )
 
