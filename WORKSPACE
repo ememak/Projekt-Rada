@@ -121,32 +121,12 @@ go_repository(
   commit = "c41aec40b27f0eeb2b94300fffcd624c69b02990"
 )
 
-load("@bazel_tools//tools/build_defs/repo:git.bzl", "git_repository")
-
 # Fetch rules_nodejs so we can install our npm dependencies
-git_repository(
+http_archive(
     name = "build_bazel_rules_nodejs",
-    #sha256 = "6142e9586162b179fdd570a55e50d1332e7d9c030efd853453438d607569721d",
-    #urls = ["https://github.com/bazelbuild/rules_nodejs/releases/download/3.0.0/rules_nodejs-3.0.0.tar.gz"],
-    tag = "3.0.0",
-    remote = "https://github.com/bazelbuild/rules_nodejs.git",
+    sha256 = "6142e9586162b179fdd570a55e50d1332e7d9c030efd853453438d607569721d",
+    urls = ["https://github.com/bazelbuild/rules_nodejs/releases/download/3.0.0/rules_nodejs-3.0.0.tar.gz"],
 )
-
-git_repository(
-    name = "build_bazel_rules_typescript",
-    #sha256 = "6142e9586162b179fdd570a55e50d1332e7d9c030efd853453438d607569721d",
-    #urls = ["https://github.com/bazelbuild/rules_nodejs/releases/download/3.0.0/rules_nodejs-3.0.0.tar.gz"],
-    tag = "0.25.1",
-    remote = "https://github.com/bazelbuild/rules_typescript.git",
-)
-
-load("@build_bazel_rules_nodejs//:package.bzl", "rules_nodejs_dev_dependencies")
-
-rules_nodejs_dev_dependencies()
-
-load("@build_bazel_rules_typescript//:package.bzl", "rules_typescript_dev_dependencies")
-
-rules_typescript_dev_dependencies()
 
 # Check the bazel version and download npm dependencies
 load("@build_bazel_rules_nodejs//:index.bzl", "yarn_install")
@@ -174,11 +154,6 @@ web_test_repositories()
 # TypeScrypt proto rules
 http_archive(
     name = "rules_typescript_proto",
-    #sha256 = "8e16f3c3d2ed8abc8935b9d177f056d1920b70ac1aff94477aa9761362982123",
-    #strip_prefix = "rules_typescript_proto-1.0.0",
-    #urls = [
-    #    "https://github.com/Dig-Doug/rules_typescript_proto/archive/1.0.0.tar.gz",
-    #],
     sha256 = "75894ba3765e03fd9d9eace6edf0b75f3e7e953e390386a3a4d58be2826d4f9f",
     strip_prefix = "rules_typescript_proto-master",
     urls = [
