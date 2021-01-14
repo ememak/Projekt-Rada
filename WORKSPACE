@@ -49,6 +49,18 @@ http_archive(
 load("@com_google_protobuf//:protobuf_deps.bzl", "protobuf_deps")
 
 protobuf_deps()
+# http_archive(
+#     name = "rules_proto",
+#     sha256 = "602e7161d9195e50246177e7c55b2f39950a9cf7366f74ed5f22fd45750cd208",
+#     strip_prefix = "rules_proto-97d8af4dc474595af3900dd85cb3a29ad28cc313",
+#     urls = [
+#         "https://mirror.bazel.build/github.com/bazelbuild/rules_proto/archive/97d8af4dc474595af3900dd85cb3a29ad28cc313.tar.gz",
+#         "https://github.com/bazelbuild/rules_proto/archive/97d8af4dc474595af3900dd85cb3a29ad28cc313.tar.gz",
+#     ],
+# )
+# load("@rules_proto//proto:repositories.bzl", "rules_proto_dependencies", "rules_proto_toolchains")
+# rules_proto_dependencies()
+# rules_proto_toolchains()
 
 # Imports Builifier (BUILD files autofixer).
 http_archive(
@@ -152,12 +164,13 @@ load("@io_bazel_rules_webtesting//web:repositories.bzl", "web_test_repositories"
 web_test_repositories()
 
 # TypeScrypt proto rules
+# We need a specific commit, because the 1.0.0 release has some import errors.
 http_archive(
     name = "rules_typescript_proto",
-    sha256 = "75894ba3765e03fd9d9eace6edf0b75f3e7e953e390386a3a4d58be2826d4f9f",
-    strip_prefix = "rules_typescript_proto-master",
+    sha256 = "61762d63b9379235ae2b9202e890eeed55508b03f26a2657e6fe452edabf2a93",
+    strip_prefix = "rules_typescript_proto-5cb87c35230e73400308072536a7f1bf194b676d",
     urls = [
-        "https://github.com/Dig-Doug/rules_typescript_proto/archive/5cb87c35230e73400308072536a7f1bf194b676d.tar.gz",
+        "https://github.com/Dig-Doug/rules_typescript_proto/archive/5cb87c35230e73400308072536a7f1bf194b676d.zip",
     ],
 )
 

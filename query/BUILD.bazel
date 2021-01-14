@@ -27,18 +27,12 @@ go_proto_library(
     visibility = ["//visibility:public"],
 )
 
-proto_library(
-    name = "query_proto_ts",
-    srcs = ["query.proto"],
-    visibility = ["//visibility:public"],
-)
-
 typescript_proto_library(
     name = "query_ts_proto",
-    proto = ":query_proto_ts",
+    proto = ":query_proto",
 )
 
 typescript_grpc_web_library(
     name = "query_ts_grpc_web",
-    proto = ":query_proto_ts",
+    proto = ":query_proto",
 )
