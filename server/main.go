@@ -7,7 +7,7 @@ import (
 	"crypto/rsa"
 	"crypto/x509"
 	"fmt"
-	"net"
+	"log"
 	"net/http"
 	"os"
 
@@ -17,6 +17,8 @@ import (
 	"github.com/improbable-eng/grpc-web/go/grpcweb"
 	bolt "go.etcd.io/bbolt"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/grpclog"
+	"google.golang.org/grpc/metadata"
 )
 
 // In constants we store connection data.
@@ -62,6 +64,8 @@ func (s *server) GetPoll(ctx context.Context, in *query.GetPollRequest) (*query.
 //
 // Questions and their types are passed in input parameter.
 func (s *server) PollInit(ctx context.Context, in *query.PollSchema) (*query.PollQuestion, error) {
+	grpc.SendHeader(ctx, metadata.Pairs("Pre-Response-Metadata", "Is-sent-as-headers-unary"))
+	grpc.SetTrailer(ctx, metadata.Pairs("Post-Response-Metadata", "Is-sent-as-trailers-unary"))
 	poll, err := store.NewPoll(s.data, in)
 	if err != nil {
 		return poll, fmt.Errorf("Error in PollInit while creating new poll in database: %w", err)
@@ -144,12 +148,6 @@ func serverInit(dbfilename string) (*server, error) {
 }
 
 func main() {
-	rec, err := net.Listen("tcp", port)
-	if err != nil {
-		fmt.Printf("Server failed to listen: %v", err)
-		os.Exit(1)
-	}
-
 	s := grpc.NewServer()
 	service, err := serverInit("data.db")
 	if err != nil {
@@ -159,15 +157,28 @@ func main() {
 
 	defer service.data.Close()
 	query.RegisterQueryServer(s, service)
+	grpclog.SetLogger(log.New(os.Stdout, "exampleserver: ", log.LstdFlags))
 
-	wrappedGrpc := grpcweb.WrapServer(s)
-	h1 := http.HandlerFunc(func(resp http.ResponseWriter, req *http.Request) {
+	op1 := grpcweb.WithCorsForRegisteredEndpointsOnly(false)
+	op2 := grpcweb.WithAllowedRequestHeaders([]string{"*"})
+	op3 := grpcweb.WithOriginFunc(func(origin string) bool { return true })
+	op4 := grpcweb.WithAllowNonRootResource(true)
+	wrappedGrpc := grpcweb.WrapServer(s, op1, op2, op3, op4)
+	handler := http.HandlerFunc(func(resp http.ResponseWriter, req *http.Request) {
 		if wrappedGrpc.IsGrpcWebRequest(req) {
 			wrappedGrpc.ServeHTTP(resp, req)
 		}
 		// Fall back to other servers.
 		http.DefaultServeMux.ServeHTTP(resp, req)
 	})
-	http.HandleFunc("/", h1)
-	s.Serve(rec)
+	httpServer := http.Server{
+		Addr:    port,
+		Handler: http.HandlerFunc(handler),
+	}
+	fmt.Printf("%v\n", grpcweb.ListGRPCResources(s))
+	err = httpServer.ListenAndServe()
+	if err != nil {
+		fmt.Printf("Sth went wrong x.x: %v\n", err)
+		os.Exit(1)
+	}
 }

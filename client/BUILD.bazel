@@ -77,4 +77,3 @@ concatjs_devserver(
     # Tell Bazel to build the sources first
     deps = [":devclient"],
 )
-

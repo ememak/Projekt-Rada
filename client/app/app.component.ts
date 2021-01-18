@@ -4,7 +4,7 @@ import { grpc } from '@improbable-eng/grpc-web';
 import { Query } from "Projekt_Rada/query/query_pb_service";
 import { PollSchema } from "Projekt_Rada/query/query_pb";
 
-const host = "http://localhost:12345";
+const host = "http://localhost:8080";
 
 @Component({
   selector: 'app-root',
@@ -18,6 +18,7 @@ export class AppComponent  {
     grpc.unary(Query.PollInit, {
       request: schema,
       host: host,
+      metadata: new grpc.Metadata({"Access-Control-Allow-Origin": "*"}),
       onEnd: res => {
         const { status, statusMessage, headers, message, trailers } = res;
         console.log("pollInit.onEnd.status", status, statusMessage);

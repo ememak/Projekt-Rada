@@ -5,7 +5,7 @@ package(default_visibility = ["//:__subpackages__"])
 
 ng_ts_library(
     name = "app",
-    srcs = glob(include=[
+    srcs = glob(include = [
         "**/*.module.ts",
         "**/*.component.ts",
     ]),
@@ -13,7 +13,7 @@ ng_ts_library(
         include = [
             "**/*.html",
             "**/*.css",
-        ]
+        ],
     ),
     tsconfig = "//:tsconfig.json",
     deps = [
