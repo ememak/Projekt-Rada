@@ -18,6 +18,9 @@ go_library(
         "@org_golang_google_grpc//grpclog:go_default_library",
         "@org_golang_google_grpc//metadata:go_default_library",
     ],
+    data = [
+        ":tls_files",
+    ],
 )
 
 go_binary(
@@ -33,5 +36,13 @@ go_test(
     deps = [
         "//store:go_default_library",
         "@com_github_golang_protobuf//proto:go_default_library",
+    ],
+)
+
+filegroup(
+    name = "tls_files",
+    srcs = [
+        "//server:cert.pem",
+        "//server:key.pem",
     ],
 )

@@ -176,7 +176,7 @@ func main() {
 		Handler: http.HandlerFunc(handler),
 	}
 	fmt.Printf("%v\n", grpcweb.ListGRPCResources(s))
-	err = httpServer.ListenAndServe()
+	err = httpServer.ListenAndServeTLS("server/cert.pem", "server/key.pem")
 	if err != nil {
 		fmt.Printf("Sth went wrong x.x: %v\n", err)
 		os.Exit(1)

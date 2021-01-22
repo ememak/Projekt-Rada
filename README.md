@@ -1,11 +1,22 @@
 # Projekt-Rada
 
-zrobiona inicjalizacja i głosowanie w ankiecie
+## Instalacja
+Wymagania: go, bazel, npm, envoy
 
-kryptografia: zrobiony schemat ślepych podpisów; 
-może być dużo dziur w stylu wielu rodzajów komunikatów zwrotnych, brak paddingu i obrony przed side channel atakami
+## Uruchamianie
+W celu uruchomienia serwera grpc należy wywołać komendę:
+```
+bazel run server
+```
+Server ten domyślnie słucha zapytań http2 na porcie 12345.
 
-zmieniony system podpisów, podpis jest parą (m, hash(m)^d) dla losowego m
+Uruchomienie klienta:
+```
+bazel run client:devserver
+```
+Klient domyślnie uruchamia się pod adresem localhost:5432
 
-zrobiona baza danych z biblioteki Bolt
-każda ankieta ma osobny klucz
+Serwer proxy envoy uruchamia się komendą:
+```
+envoy -c client/envoy.yaml
+```
