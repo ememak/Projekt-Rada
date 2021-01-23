@@ -18,7 +18,6 @@ import (
 	bolt "go.etcd.io/bbolt"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/grpclog"
-	"google.golang.org/grpc/metadata"
 )
 
 // In constants we store connection data.
@@ -64,8 +63,6 @@ func (s *server) GetPoll(ctx context.Context, in *query.GetPollRequest) (*query.
 //
 // Questions and their types are passed in input parameter.
 func (s *server) PollInit(ctx context.Context, in *query.PollSchema) (*query.PollQuestion, error) {
-	grpc.SendHeader(ctx, metadata.Pairs("Pre-Response-Metadata", "Is-sent-as-headers-unary"))
-	grpc.SetTrailer(ctx, metadata.Pairs("Post-Response-Metadata", "Is-sent-as-trailers-unary"))
 	poll, err := store.NewPoll(s.data, in)
 	if err != nil {
 		return poll, fmt.Errorf("Error in PollInit while creating new poll in database: %w", err)
@@ -159,26 +156,18 @@ func main() {
 	query.RegisterQueryServer(s, service)
 	grpclog.SetLogger(log.New(os.Stdout, "exampleserver: ", log.LstdFlags))
 
-	op1 := grpcweb.WithCorsForRegisteredEndpointsOnly(false)
-	op2 := grpcweb.WithAllowedRequestHeaders([]string{"*"})
-	op3 := grpcweb.WithOriginFunc(func(origin string) bool { return true })
-	op4 := grpcweb.WithAllowNonRootResource(true)
-	wrappedGrpc := grpcweb.WrapServer(s, op1, op2, op3, op4)
-	handler := http.HandlerFunc(func(resp http.ResponseWriter, req *http.Request) {
-		if wrappedGrpc.IsGrpcWebRequest(req) {
-			wrappedGrpc.ServeHTTP(resp, req)
-		}
-		// Fall back to other servers.
-		http.DefaultServeMux.ServeHTTP(resp, req)
-	})
+	wrappedGrpc := grpcweb.WrapServer(s)
+	handler := func(resp http.ResponseWriter, req *http.Request) {
+		wrappedGrpc.ServeHTTP(resp, req)
+	}
 	httpServer := http.Server{
 		Addr:    port,
 		Handler: http.HandlerFunc(handler),
 	}
 	fmt.Printf("%v\n", grpcweb.ListGRPCResources(s))
-	err = httpServer.ListenAndServeTLS("server/cert.pem", "server/key.pem")
+	err = httpServer.ListenAndServe()
 	if err != nil {
-		fmt.Printf("Sth went wrong x.x: %v\n", err)
+		fmt.Printf("Error while launching server: %v\n", err)
 		os.Exit(1)
 	}
 }
