@@ -1,7 +1,7 @@
 # Projekt-Rada
 
 ## Instalacja
-Wymagania: go, bazel, npm
+Wymagania: bazel
 
 ## Uruchamianie
 W celu uruchomienia serwera grpc należy wywołać komendę:
