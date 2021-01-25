@@ -67,6 +67,8 @@ concatjs_devserver(
     scripts = [
         "@npm//:node_modules/tslib/tslib.js",
         ":rxjs_umd_modules",
+        "@npm//google-protobuf:google-protobuf__umd",
+        "@npm//@improbable-eng/grpc-web:grpc-web__umd",
     ],
     # Serve these files in addition to the JavaScript bundle
     static_files = _ASSETS + [
@@ -75,4 +77,3 @@ concatjs_devserver(
     # Tell Bazel to build the sources first
     deps = [":devclient"],
 )
-

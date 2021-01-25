@@ -94,6 +94,33 @@ go_repository(
     version = "v1.4.3",
 )
 
+go_repository(
+  name = "com_github_improbable-eng_grpc-web",
+  importpath = "github.com/improbable-eng/grpc-web",
+  sum = "h1:7XqtaBWaOCH0cVGKHyvhtcuo6fgW32Y10yRKrDHFHOc=",
+  version = "v0.13.0",
+)
+
+go_repository(
+  name = "com_github_gorilla_websocket",
+  importpath = "github.com/gorilla/websocket",
+  sum = "h1:+/TMaTYc4QFitKJxsQ7Yye35DkWvkdLcvGKqM+x0Ufc=",
+  version = "v1.4.2",
+)
+
+go_repository(
+  name = "com_github_rs_cors",
+  importpath = "github.com/rs/cors",
+  sum = "h1:+88SsELBHx5r+hZ8TCkggzSstaWNbDvThkVK8H6f9ik=",
+  version = "v1.7.0",
+)
+
+go_repository(
+  name = "com_github_desertbit_timer",
+  importpath = "github.com/desertbit/timer",
+  commit = "c41aec40b27f0eeb2b94300fffcd624c69b02990"
+)
+
 # Fetch rules_nodejs so we can install our npm dependencies
 http_archive(
     name = "build_bazel_rules_nodejs",
@@ -122,3 +149,18 @@ http_archive(
 load("@io_bazel_rules_webtesting//web:repositories.bzl", "web_test_repositories")
 
 web_test_repositories()
+
+# TypeScrypt proto rules
+# We need a specific commit, because the 1.0.0 release has some import errors.
+http_archive(
+    name = "rules_typescript_proto",
+    sha256 = "61762d63b9379235ae2b9202e890eeed55508b03f26a2657e6fe452edabf2a93",
+    strip_prefix = "rules_typescript_proto-5cb87c35230e73400308072536a7f1bf194b676d",
+    urls = [
+        "https://github.com/Dig-Doug/rules_typescript_proto/archive/5cb87c35230e73400308072536a7f1bf194b676d.zip",
+    ],
+)
+
+load("@rules_typescript_proto//:index.bzl", "rules_typescript_proto_dependencies")
+
+rules_typescript_proto_dependencies()

@@ -1,12 +1,11 @@
 load("@npm//@bazel/typescript:index.bzl", "ts_library")
-
 load("//rules:angular_ts_library.bzl", "ng_ts_library")
 
 package(default_visibility = ["//:__subpackages__"])
 
 ng_ts_library(
     name = "app",
-    srcs = glob(include=[
+    srcs = glob(include = [
         "**/*.module.ts",
         "**/*.component.ts",
     ]),
@@ -14,15 +13,19 @@ ng_ts_library(
         include = [
             "**/*.html",
             "**/*.css",
-        ]
+        ],
     ),
     tsconfig = "//:tsconfig.json",
     deps = [
+        "//query:query_ts_proto",
+        "//query:query_ts_grpc_web",
         ":products",
         "@npm//@angular/core",
         "@npm//@angular/forms",
         "@npm//@angular/platform-browser",
         "@npm//@angular/router",
+        "@npm//@improbable-eng/grpc-web",
+        "@npm//google-protobuf",
     ],
 )
 

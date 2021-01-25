@@ -7,14 +7,17 @@ import (
 	"crypto/rsa"
 	"crypto/x509"
 	"fmt"
-	"net"
+	"log"
+	"net/http"
 	"os"
 
 	"github.com/ememak/Projekt-Rada/bsign"
 	"github.com/ememak/Projekt-Rada/query"
 	"github.com/ememak/Projekt-Rada/store"
+	"github.com/improbable-eng/grpc-web/go/grpcweb"
 	bolt "go.etcd.io/bbolt"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/grpclog"
 )
 
 // In constants we store connection data.
@@ -142,12 +145,6 @@ func serverInit(dbfilename string) (*server, error) {
 }
 
 func main() {
-	rec, err := net.Listen("tcp", port)
-	if err != nil {
-		fmt.Printf("Server failed to listen: %v", err)
-		os.Exit(1)
-	}
-
 	s := grpc.NewServer()
 	service, err := serverInit("data.db")
 	if err != nil {
@@ -157,6 +154,20 @@ func main() {
 
 	defer service.data.Close()
 	query.RegisterQueryServer(s, service)
+	grpclog.SetLogger(log.New(os.Stdout, "exampleserver: ", log.LstdFlags))
 
-	s.Serve(rec)
+	wrappedGrpc := grpcweb.WrapServer(s)
+	handler := func(resp http.ResponseWriter, req *http.Request) {
+		wrappedGrpc.ServeHTTP(resp, req)
+	}
+	httpServer := http.Server{
+		Addr:    port,
+		Handler: http.HandlerFunc(handler),
+	}
+	fmt.Printf("%v\n", grpcweb.ListGRPCResources(s))
+	err = httpServer.ListenAndServe()
+	if err != nil {
+		fmt.Printf("Error while launching server: %v\n", err)
+		os.Exit(1)
+	}
 }
