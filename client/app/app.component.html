@@ -1,11 +1,9 @@
 <app-top-bar></app-top-bar>
 
-<div class="container">
-  <router-outlet></router-outlet>
-  <button (click)="pollInit()">
-    pollInit
-  </button>
-</div>
+<nav>
+  <a routerLink="/pollinit">Create new poll</a>
+</nav>
+<router-outlet></router-outlet>
 
 <!-- 
 Copyright Google LLC. All Rights Reserved.

@@ -1,0 +1,33 @@
+<h2>Write questions to your new poll</h2>
+
+<ul class="questions">
+  <li *ngFor="let inp of input">
+    <mat-form-field appearance="fill">
+      <mat-label>Pytanie</mat-label>
+      <input matInput [(ngModel)]="inp.question" placeholder="Pytanie" name="Pytanie">
+    </mat-form-field>
+    
+    <mat-form-field appearance="fill">
+      <mat-label>Rodzaj pytania</mat-label>
+      <mat-select [(ngModel)]="inp.qtype">
+        <mat-option value=0>Otwarte</mat-option>
+        <mat-option value=1>Wielokrotnego wyboru</mat-option>
+        <mat-option value=2>Zamknięte</mat-option>
+      </mat-select>
+    </mat-form-field>
+  </li>
+</ul>
+<button (click)="newQuestion()">
+  Nowe pytanie
+</button>
+<div>
+  <button (click)="sendPoll()">
+    Wyślij nową ankietę
+  </button>
+</div>
+
+<!-- 
+Copyright Google LLC. All Rights Reserved.
+Use of this source code is governed by an MIT-style license that
+can be found in the LICENSE file at https://angular.io/license
+-->

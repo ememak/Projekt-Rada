@@ -19,9 +19,9 @@ ng_ts_library(
     deps = [
         "//query:query_ts_proto",
         "//query:query_ts_grpc_web",
-        ":products",
         "@npm//@angular/core",
         "@npm//@angular/forms",
+        "@npm//@angular/material",
         "@npm//@angular/platform-browser",
         "@npm//@angular/router",
         "@npm//@improbable-eng/grpc-web",
@@ -29,8 +29,3 @@ ng_ts_library(
     ],
 )
 
-ts_library(
-    name = "products",
-    srcs = ["products.ts"],
-    tsconfig = "//:tsconfig.json",
-)
