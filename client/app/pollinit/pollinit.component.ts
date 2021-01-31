@@ -27,7 +27,7 @@ export class PollInitComponent {
     for (let inp of this.input){
       const QA = new PollSchema.QA();
       QA.setQuestion(inp.question);
-      //QA.setType(inp.qtype);
+      QA.setType(inp.qtype as 0 | 1 | 2);
       schema.addQuestions(QA);
     }
     grpc.unary(Query.PollInit, {
