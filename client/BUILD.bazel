@@ -35,6 +35,7 @@ _ASSETS = [
     # zone.js is used, given that we don't have any import statement that
     # imports from it.
     "@npm//:node_modules/zone.js/dist/zone.min.js",
+    "@npm//:node_modules/@angular/material/prebuilt-themes/indigo-pink.css",
 ]
 
 html_insert_assets(
