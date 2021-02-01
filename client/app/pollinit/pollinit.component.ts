@@ -13,6 +13,7 @@ const host = "http://localhost:12345";
 export class PollInitComponent {
   questionsList: PollSchema.QA.AsObject[]  = [{
       question: "",
+      optionsList: [""],
       type: PollSchema.QuestionType.OPEN,
       answer: "",
     },
@@ -23,9 +24,19 @@ export class PollInitComponent {
   addQuestion() {
     this.questionsList.push({
       question: "",
+      optionsList: [""],
       type: PollSchema.QuestionType.OPEN,
       answer: "",
     });
+  }
+
+  addOption(index: number) {
+    console.log(index)
+    this.questionsList[index].optionsList.push("");
+  }
+
+  trackOption(index: number, option: string) {
+    return index;
   }
 
   get diagnostic() { return JSON.stringify(this.questionsList); }
