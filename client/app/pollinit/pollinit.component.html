@@ -1,29 +1,22 @@
-<h2>Write questions to your new poll</h2>
-
-<ul class="questions">
-  <li *ngFor="let inp of input">
-    <mat-form-field appearance="fill">
-      <mat-label>Pytanie</mat-label>
-      <input matInput [(ngModel)]="inp.question" placeholder="Pytanie" name="Pytanie">
-    </mat-form-field>
-    
-    <mat-form-field appearance="fill">
-      <mat-label>Rodzaj pytania</mat-label>
-      <mat-select [(ngModel)]="inp.qtype">
-        <mat-option value=0>Otwarte</mat-option>
-        <mat-option value=1>Wielokrotnego wyboru</mat-option>
-        <mat-option value=2>Zamknięte</mat-option>
-      </mat-select>
-    </mat-form-field>
-  </li>
-</ul>
-<button (click)="newQuestion()">
-  Nowe pytanie
-</button>
 <div>
-  <button (click)="sendPoll()">
-    Wyślij nową ankietę
-  </button>
+  <form (ngSumbit)="onSubmit()" #pollInit="ngForm">
+    {{ diagnostic }}
+    <mat-card *ngFor="let qa of questionsList;">
+      <mat-form-field appearance="fill">
+        <mat-label>Pytanie</mat-label>
+        <input matInput [(ngModel)]="qa.question" name="qa-{{i}}-question">
+      </mat-form-field>
+      <mat-form-field appearance="fill">
+        <mat-label>Rodzaj</mat-label>
+        <mat-select [(ngModel)]="qa.type" name="qa-{{i}}-type">
+          <mat-option value="0">Otwarte</mat-option>
+          <mat-option value="1">Wielokrotnego wyboru</mat-option>
+          <mat-option value="2">Zamknięte</mat-option>
+        </mat-select>
+      </mat-form-field>
+    </mat-card>
+    <button mat-button color="primary" (click)="addQuestion()">Dodaj pytanie</button>
+  </form>
 </div>
 
 <!-- 

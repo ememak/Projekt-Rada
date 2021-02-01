@@ -7,43 +7,30 @@ import { PollSchema } from "Projekt_Rada/query/query_pb";
 const host = "http://localhost:12345";
 
 @Component({
-  selector: 'app-pollinit',
+  selector: 'poll-init',
   templateUrl: './pollinit.component.html',
 })
 export class PollInitComponent {
-  input: { question: string, qtype: number }[] = [
-    { "question": "", "qtype": 0 },
+  questionsList: PollSchema.QA.AsObject[]  = [{
+      question: "",
+      type: PollSchema.QuestionType.OPEN,
+      answer: "",
+    },
   ];
-  
-  ngOnInit() {
-  }
 
-  newQuestion() {
-    this.input.push({"question": "", "qtype": 0});
-  }
+  constructor () {}
 
-  sendPoll() {
-    const schema= new PollSchema();
-    for (let inp of this.input){
-      const QA = new PollSchema.QA();
-      QA.setQuestion(inp.question);
-      QA.setType(inp.qtype as 0 | 1 | 2);
-      schema.addQuestions(QA);
-    }
-    grpc.unary(Query.PollInit, {
-      request: schema,
-      host: host,
-      onEnd: res => {
-        const { status, statusMessage, headers, message, trailers } = res;
-        console.log("pollInit.onEnd.status", status, statusMessage);
-        console.log("pollInit.onEnd.headers", headers);
-        if (status === grpc.Code.OK && message) {
-          console.log("pollInit.onEnd.message", message.toObject());
-        }
-        console.log("pollInit.onEnd.trailers", trailers);
-      }
+  addQuestion() {
+    this.questionsList.push({
+      question: "",
+      type: PollSchema.QuestionType.OPEN,
+      answer: "",
     });
   }
+
+  get diagnostic() { return JSON.stringify(this.questionsList); }
+
+  onSubmit() {}
 }
 
 
