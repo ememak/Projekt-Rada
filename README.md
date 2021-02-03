@@ -16,3 +16,4 @@ bazel run client:devserver
 ```
 Klient domyślnie uruchamia się pod adresem localhost:5432
 
+Przed skorzystaniem z usługi grpc należy wyłączyć CORS w przeglądarce.

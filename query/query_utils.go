@@ -15,6 +15,12 @@ func (t *PollSchema) IsValid() error {
 			return fmt.Errorf("Error! Question contains non valid characters.")
 		}
 
+		for _, opt := range qa.Options {
+			if !IsStringPrintable(opt) {
+				return fmt.Errorf("Error! Answer option contains non valid characters.")
+			}
+		}
+
 		if !qa.Type.IsValid() {
 			return fmt.Errorf("Error! Wrong question type.")
 		}

@@ -64,8 +64,9 @@ message PollSchema {
 
   message QA {
     string question = 1;
-    QuestionType type = 2;
-    string answer = 3;
+    repeated string options = 2;
+    QuestionType type = 3;
+    string answer = 4;
   }
 
   repeated QA questions = 1;
