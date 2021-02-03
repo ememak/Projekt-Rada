@@ -16,8 +16,20 @@ func (t *PollSchema) IsValid() error {
 		}
 
 		for _, opt := range qa.Options {
-			if !IsStringPrintable(opt) {
+			sum := 0
+			if !IsStringPrintable(opt.Name) {
 				return fmt.Errorf("Error! Answer option contains non valid characters.")
+			}
+			if opt.Selected {
+				sum += 1
+			}
+			if qa.Type == PollSchema_CLOSE {
+				if sum == 0 {
+					return fmt.Errorf("Error! Answer option is not selected.")
+				}
+				if sum > 1 {
+					return fmt.Errorf("Error! Multiple answer options are selected.")
+				}
 			}
 		}
 
