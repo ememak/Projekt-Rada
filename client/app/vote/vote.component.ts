@@ -15,43 +15,42 @@ export class VoteComponent {
       question: "Pytanie otwarte",
       optionsList: [],
       type: PollSchema.QuestionType.OPEN,
-      answer: "",
+      answersList: [""],
     },
     {
       question: "Pytanie zamknięte",
-      optionsList: [{name: "Opcja 1.", selected: false}, {name: "Opcja 2.", selected: false}],
+      optionsList: ["Opcja 1.", "Opcja 2."],
       type: PollSchema.QuestionType.CLOSE,
-      answer: "",
+      answersList: ["", ""],
     },
     {
       question: "Pytanie wielokrotnego wyboru",
-      optionsList: [{name: "Opcja 1.", selected: false}, {name: "Opcja 2.", selected: false}],
+      optionsList: ["Opcja 1.", "Opcja 2."],
       type: PollSchema.QuestionType.CHECKBOX,
-      answer: "",
+      answersList: ["", ""],
     },
   ];
-  closedOption: number[];
 
   constructor () {
-    this.closedOption = new Array(this.questionsList.length).fill(-1);
   }
 
   trackOption(index: number, option: string) {
     return index;
   }
 
-  get diagnostic() { return JSON.stringify(this.closedOption/*questionsList*/); }
+  get diagnostic() { return JSON.stringify(this.questionsList); }
 
   onSubmit() {
-    for(var i=0; i<this.questionsList.length; i++) {
-      var qa = this.questionsList[i];
-      if(qa.type == 2) {
-        for(var j=0; j<qa.optionsList.length; j++) {
-          if(j == this.closedOption[i])
-            qa.optionsList[j].selected = true;
-          else
-            qa.optionsList[j].selected = false;
-        }
+    for(let qa of this.questionsList){
+      if(qa.type==PollSchema.QuestionType.CLOSE){
+        qa.answersList = qa.answersList.map((ans, index) => {
+          return parseInt(qa.answersList[0])==index?"true":"false";
+        })
+      }
+      if(qa.type==PollSchema.QuestionType.CHECKBOX){
+        qa.answersList = qa.answersList.map((ans, index) => {
+          return ans==""?"false":ans;
+        })
       }
     }
     console.log(JSON.stringify(this.questionsList));

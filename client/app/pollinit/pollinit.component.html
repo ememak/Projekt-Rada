@@ -17,7 +17,7 @@
       <ng-template [ngIf]="qa.type!=0">
         <mat-form-field *ngFor="let option of qa.optionsList;let j = index;trackBy: trackOption" appearance="fill">
           <mat-label>Opcja</mat-label>
-          <input matInput [(ngModel)]="option.name" name="qa-{{i}}-question-{{j}}-option">
+          <input matInput [(ngModel)]="qa.optionsList[j]" name="qa-{{i}}-question-{{j}}-option">
         </mat-form-field>
         <button mat-button color="primary" type="button" (click)="addOption(index = i)">Dodaj opcję odpowiedzi</button>
       </ng-template>

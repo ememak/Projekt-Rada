@@ -6,24 +6,26 @@
       <ng-template [ngIf]="qa.type==0">
         <br>
         <mat-form-field appearance="fill">
-          <textarea matInput [(ngModel)]="qa.answer" name="qa-{{i}}-answer"></textarea>
+          <textarea matInput [(ngModel)]="qa.answersList[0]" name="qa-{{i}}-answer"></textarea>
         </mat-form-field>
       </ng-template>
       <ng-template [ngIf]="qa.type==1">
         <ul>
           <li *ngFor="let option of qa.optionsList;let j = index;trackBy: trackOption">
-            <mat-checkbox [(ngModel)]="option.selected" name="qa-{{i}}-option-ch-{{j}}">
-              {{option.name}}
+            <mat-checkbox (ngModel)="qa.answersList[j]=='true'?true:false"
+                          (ngModelChange)="qa.answersList[j]=$event?'true':'false'"
+                          name="qa-{{i}}-option-ch-{{j}}">
+              {{option}}
             </mat-checkbox>
           </li>
         </ul>
       </ng-template>
       <ng-template [ngIf]="qa.type==2">
-        <mat-radio-group [(ngModel)]="closedOption[i]" aria-label="Select an option" name="qa-{{i}}-options">
+        <mat-radio-group [(ngModel)]="qa.answersList[0]" aria-label="Select an option" name="qa-{{i}}-options">
         <ul>
           <li *ngFor="let option of qa.optionsList;let j = index;trackBy: trackOption">
-            <mat-radio-button [value]="j" name="qa-{{i}}-option-cl-{{j}}">
-              {{option.name}}
+            <mat-radio-button value="{{j}}" name="qa-{{i}}-option-cl-{{j}}">
+              {{option}}
             </mat-radio-button>
           </li>
         </ul>

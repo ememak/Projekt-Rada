@@ -62,16 +62,11 @@ message PollSchema {
     CLOSE = 2; // User have to choose one option from a list.
   }
 
-  message QuestionOption {
-    string name = 1;
-    bool selected = 2;
-  }
-
   message QA {
     string question = 1;
-    repeated QuestionOption options = 2;
+    repeated string options = 2;
     QuestionType type = 3;
-    string answer = 4;
+    repeated string answers = 4;
   }
 
   repeated QA questions = 1;

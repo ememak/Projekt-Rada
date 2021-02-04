@@ -39,12 +39,10 @@ var testsNewPoll = []struct {
 				{
 					Question: "Do you like this system? Options: yes/no",
 					Type:     query.PollSchema_CLOSE,
-					Answer:   "",
 				},
 				{
 					Question: "Why?",
 					Type:     query.PollSchema_OPEN,
-					Answer:   "",
 				},
 			},
 		},
@@ -56,7 +54,6 @@ var testsNewPoll = []struct {
 				{
 					Question: "Wrong\x01characters\x07\x00",
 					Type:     query.PollSchema_CLOSE,
-					Answer:   "",
 				},
 			},
 		},
@@ -68,7 +65,6 @@ var testsNewPoll = []struct {
 				{
 					Question: "Valid question\n!@#$%",
 					Type:     5,
-					Answer:   "",
 				},
 			},
 		},
@@ -80,17 +76,14 @@ var testsNewPoll = []struct {
 				{
 					Question: "^&*()'\"\\",
 					Type:     0,
-					Answer:   "",
 				},
 				{
 					Question: "{}:<>?,./;[]+=-_",
 					Type:     1,
-					Answer:   "",
 				},
 				{
 					Question: "1234567890\x09", // \x09 - Tab
 					Type:     2,
-					Answer:   "",
 				},
 			},
 		},
@@ -181,12 +174,10 @@ var testsSaveVote = []struct {
 					{
 						Question: "Do you like this system? Options: yes/no Answer: yes",
 						Type:     query.PollSchema_CLOSE,
-						Answer:   "",
 					},
 					{
 						Question: "Why? Answer: Its cool.",
 						Type:     query.PollSchema_OPEN,
-						Answer:   "",
 					},
 				}},
 			Sign: &query.RSASignature{
@@ -208,12 +199,10 @@ var testsSaveVote = []struct {
 					{
 						Question: "Do you like this system? Options: yes/no Answer: yes",
 						Type:     query.PollSchema_CLOSE,
-						Answer:   "",
 					},
 					{
 						Question: "Why? Answer: Its cool.",
 						Type:     query.PollSchema_OPEN,
-						Answer:   "",
 					},
 				}},
 			Sign: &query.RSASignature{
@@ -233,12 +222,12 @@ var testsSaveVote = []struct {
 					{
 						Question: "Do you like this system? Options: yes/no",
 						Type:     query.PollSchema_CLOSE,
-						Answer:   "yes",
+						Answers:  []string{"yes"},
 					},
 					{
 						Question: "Why?",
 						Type:     query.PollSchema_OPEN,
-						Answer:   "\x01\x21\xae", // Non valid characters
+						Answers:  []string{"\x01\x21\xae"}, // Non valid characters
 					},
 				}},
 			Sign: &query.RSASignature{
@@ -258,7 +247,7 @@ var testsSaveVote = []struct {
 					{
 						Question: "!@#$%^&*()_+:\"<>?,./;'[]-=",
 						Type:     0,
-						Answer:   "qwertyuiopasdfghjk",
+						Answers:  []string{"qwertyuiopasdfghjk"},
 					},
 				}},
 			Sign: &query.RSASignature{
@@ -280,12 +269,12 @@ var testsSaveVote = []struct {
 					{
 						Question: "Do you like this system? Options: yes/no",
 						Type:     query.PollSchema_CLOSE,
-						Answer:   "yes",
+						Answers:  []string{"yes"},
 					},
 					{
 						Question: "\x01\x21\xae", // Non valid characters
 						Type:     query.PollSchema_OPEN,
-						Answer:   "whatever",
+						Answers:  []string{"whatever"},
 					},
 				}},
 			Sign: &query.RSASignature{

@@ -13,12 +13,10 @@ var testsPollInitIn = []*query.PollSchema{
 			{
 				Question: "Do you like this system? Options: yes/no",
 				Type:     query.PollSchema_CLOSE,
-				Answer:   "",
 			},
 			{
 				Question: "Why?",
 				Type:     query.PollSchema_OPEN,
-				Answer:   "",
 			},
 		},
 	},
@@ -27,12 +25,10 @@ var testsPollInitIn = []*query.PollSchema{
 			{
 				Question: "Do you like this system? Options: yes/no",
 				Type:     query.PollSchema_CLOSE,
-				Answer:   "",
 			},
 			{
 				Question: "Why?",
 				Type:     3, // wrong type!
-				Answer:   "",
 			},
 		},
 	},
@@ -41,7 +37,6 @@ var testsPollInitIn = []*query.PollSchema{
 			{
 				Question: "Do you like this system? Options: yes/no",
 				Type:     -1, //wrong type!
-				Answer:   "",
 			},
 		},
 	},
@@ -50,7 +45,6 @@ var testsPollInitIn = []*query.PollSchema{
 			{
 				Question: "Check numbers you like? Options: 1;2;5;e;74",
 				Type:     query.PollSchema_CHECKBOX,
-				Answer:   "",
 			},
 		},
 	},
@@ -59,7 +53,6 @@ var testsPollInitIn = []*query.PollSchema{
 			{
 				Question: "\x00\x01\x02\xff\xe7",
 				Type:     query.PollSchema_OPEN,
-				Answer:   "",
 			},
 		},
 	},
@@ -77,12 +70,10 @@ var testsPollInitOutEmpty = []struct {
 					{
 						Question: "Do you like this system? Options: yes/no",
 						Type:     query.PollSchema_CLOSE,
-						Answer:   "",
 					},
 					{
 						Question: "Why?",
 						Type:     query.PollSchema_OPEN,
-						Answer:   "",
 					},
 				},
 			},
@@ -105,7 +96,6 @@ var testsPollInitOutEmpty = []struct {
 					{
 						Question: "Check numbers you like? Options: 1;2;5;e;74",
 						Type:     query.PollSchema_CHECKBOX,
-						Answer:   "",
 					},
 				},
 			},
@@ -130,12 +120,10 @@ var testsPollInitOut1Poll = []struct {
 					{
 						Question: "Do you like this system? Options: yes/no",
 						Type:     query.PollSchema_CLOSE,
-						Answer:   "",
 					},
 					{
 						Question: "Why?",
 						Type:     query.PollSchema_OPEN,
-						Answer:   "",
 					},
 				},
 			},
@@ -158,7 +146,6 @@ var testsPollInitOut1Poll = []struct {
 					{
 						Question: "Check numbers you like? Options: 1;2;5;e;74",
 						Type:     query.PollSchema_CHECKBOX,
-						Answer:   "",
 					},
 				},
 			},
@@ -181,12 +168,10 @@ var testsGetPollIn = []struct {
 				{
 					Question: "Do you like this system? Options: yes/no",
 					Type:     query.PollSchema_CLOSE,
-					Answer:   "",
 				},
 				{
 					Question: "Why?",
 					Type:     query.PollSchema_OPEN,
-					Answer:   "",
 				},
 			},
 		},
@@ -200,12 +185,10 @@ var testsGetPollIn = []struct {
 				{
 					Question: "Do you like this system? Options: yes/no",
 					Type:     query.PollSchema_CLOSE,
-					Answer:   "",
 				},
 				{
 					Question: "Why?",
 					Type:     query.PollSchema_OPEN,
-					Answer:   "",
 				},
 			},
 		},
@@ -219,7 +202,6 @@ var testsGetPollIn = []struct {
 				{
 					Question: "Do you like this system? Options: yes/no",
 					Type:     query.PollSchema_CLOSE,
-					Answer:   "",
 				},
 			},
 		},
@@ -233,12 +215,10 @@ var testsGetPollIn = []struct {
 				{
 					Question: "Do you like this system? Options: yes/no",
 					Type:     -3,
-					Answer:   "",
 				},
 				{
 					Question: "Why?",
 					Type:     query.PollSchema_OPEN,
-					Answer:   "",
 				},
 			},
 		},
@@ -258,12 +238,10 @@ var testsGetPollOut = []struct {
 				{
 					Question: "Do you like this system? Options: yes/no",
 					Type:     query.PollSchema_CLOSE,
-					Answer:   "",
 				},
 				{
 					Question: "Why?",
 					Type:     query.PollSchema_OPEN,
-					Answer:   "",
 				},
 			},
 		},
@@ -470,7 +448,6 @@ var testsPollVote = []struct {
 					{
 						Question: "Question\x00\x01",
 						Type:     query.PollSchema_OPEN,
-						Answer:   "",
 					},
 				},
 			},
@@ -499,7 +476,7 @@ var testsPollVote = []struct {
 					{
 						Question: "Question",
 						Type:     query.PollSchema_OPEN,
-						Answer:   "\xe2\x03",
+						Answers:  []string{"\xe2\x03"},
 					},
 				},
 			},
@@ -528,7 +505,7 @@ var testsPollVote = []struct {
 					{
 						Question: "Question",
 						Type:     -1,
-						Answer:   "\xe2\x03",
+						Answers:  []string{"\xe2\x03"},
 					},
 				},
 			},
@@ -557,7 +534,6 @@ var testsEntireProtocol = struct {
 			{
 				Question: "Question",
 				Type:     query.PollSchema_OPEN,
-				Answer:   "",
 			},
 		},
 	},
@@ -575,7 +551,7 @@ var testsEntireProtocol = struct {
 				{
 					Question: "Question",
 					Type:     query.PollSchema_OPEN,
-					Answer:   "Answer",
+					Answers:  []string{"Answer"},
 				},
 			},
 		},
