@@ -15,7 +15,7 @@ export class PollInitComponent {
       question: "",
       optionsList: [""],
       type: PollSchema.QuestionType.OPEN,
-      answer: "",
+      answersList: [""],
     },
   ];
 
@@ -26,13 +26,14 @@ export class PollInitComponent {
       question: "",
       optionsList: [""],
       type: PollSchema.QuestionType.OPEN,
-      answer: "",
+      answersList: [""],
     });
   }
 
   addOption(index: number) {
     console.log(index)
     this.questionsList[index].optionsList.push("");
+    this.questionsList[index].answersList.push("");
   }
 
   trackOption(index: number, option: string) {
@@ -43,10 +44,3 @@ export class PollInitComponent {
 
   onSubmit() {}
 }
-
-
-/*
-Copyright Google LLC. All Rights Reserved.
-Use of this source code is governed by an MIT-style license that
-can be found in the LICENSE file at https://angular.io/license
-*/
