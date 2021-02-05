@@ -1,0 +1,30 @@
+<div>
+  <form #vote="ngForm">
+    {{ diagnostic }}
+    <mat-card *ngFor="let qa of answers.schema.questionsList;let i = index">
+      {{qa.question}}
+      <ng-template [ngIf]="qa.type==0">
+        <br>
+        <mat-form-field *ngFor="let ans of qa.answersList;let j = index;trackBy: trackOption" appearance="fill">
+          <mat-label>Odpowiedź {{j+1}}</mat-label>
+          <textarea matInput disabled [(ngModel)]="qa.answersList[j]" name="qa-{{i}}-answer-{{j}}"></textarea>
+        </mat-form-field>
+      </ng-template>
+      <ng-template [ngIf]="qa.type==1">
+        <ul>
+          <li *ngFor="let option of qa.optionsList;let j = index;trackBy: trackOption">
+            {{option}} - {{qa.answersList[j]}} głosów
+          </li>
+        </ul>
+      </ng-template>
+      <ng-template [ngIf]="qa.type==2">
+        <ul>
+          <li *ngFor="let option of qa.optionsList;let j = index;trackBy: trackOption">
+            {{option}} - {{qa.answersList[j]}} głosów
+          </li>
+        </ul>
+      </ng-template>
+    </mat-card>
+  </form>
+</div>
+

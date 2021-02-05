@@ -13,6 +13,7 @@ import { AppRoutingModule } from './app-routing.module';
 import { AppComponent } from './app.component';
 import { PollInitComponent } from './pollinit/pollinit.component';
 import { TopBarComponent } from './top-bar/top-bar.component';
+import { ResultsComponent } from './results/results.component';
 import { VoteComponent } from './vote/vote.component';
 
 
@@ -35,6 +36,7 @@ import { VoteComponent } from './vote/vote.component';
     AppComponent,
     TopBarComponent,
     PollInitComponent,
+    ResultsComponent,
     VoteComponent
   ],
   bootstrap: [ AppComponent ]
