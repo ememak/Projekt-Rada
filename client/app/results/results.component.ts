@@ -11,136 +11,51 @@ const host = "http://localhost:12345";
   templateUrl: './results.component.html',
 })
 export class ResultsComponent {
-  answers: PollSummary.AsObject = poll;
+  summary: PollSummary.AsObject = summ;
+
+  input: any[] = [];
 
   constructor () {
-    for(let question of this.answers.schema.questionsList){
-      if(question.type != PollSchema.QuestionType.OPEN){
-        for(let [j, ans] of question.answersList.entries()){
-          if(ans == ""){
-            question.answersList[j] = "0"
-          }
-        }
+    for (let qa of this.summary.schema.questionsList) {
+      let r = [];
+      for(let [i, opt] of qa.optionsList.entries()) {
+        r.push([opt, parseInt(qa.answersList[i])]);
       }
-      else {
-        question.answersList = []
-      }
+      this.input.push(r)
     }
-    for(let vote of this.answers.votesList){
-      for(let [i, question] of vote.questionsList.entries()){
-        if(question.type == PollSchema.QuestionType.OPEN){
-          this.answers.schema.questionsList[i].answersList.push(question.answersList[0])
-        }
-        if(vote.questionsList[i].type == PollSchema.QuestionType.CLOSE){
-          for(let [j, ans] of question.answersList.entries()){
-            let v = parseInt(this.answers.schema.questionsList[i].answersList[j]);
-            this.answers.schema.questionsList[i].answersList[j] = (v + parseInt(ans)).toString()
-          }
-        }
-        if(vote.questionsList[i].type == PollSchema.QuestionType.CHECKBOX){
-          for(let [j, ans] of question.answersList.entries()){
-            let v = parseInt(this.answers.schema.questionsList[i].answersList[j]);
-            this.answers.schema.questionsList[i].answersList[j] = (v + parseInt(ans)).toString()
-          }
-        }
-      }
-    }
-  }
-
-  addOption(index: number) {
-    console.log(index)
+    console.log("here")
   }
 
   trackOption(index: number, option: string) {
     return index;
   }
 
-  get diagnostic() { return JSON.stringify(this.answers.schema); }
+  get diagnostic() { return JSON.stringify(this.summary.schema); }
   
   onSubmit() {}
 }
 
-var poll: PollSummary.AsObject = {
+var summ: PollSummary.AsObject = {
   id: 1,
+  votescount: 3,
   schema: {
     questionsList: [{
       question: "Pytanie otwarte",
       optionsList: [],
       type: PollSchema.QuestionType.OPEN,
-      answersList: [""],
+      answersList: ["Odpowiedź", "Kolejna odpowiedź", "Jeszcze jedna odpowiedź"],
     },
     {
       question: "Pytanie zamknięte",
       optionsList: ["Opcja 1.", "Opcja 2."],
       type: PollSchema.QuestionType.CLOSE,
-      answersList: ["", ""],
+      answersList: ["2", "1"],
     },
     {
       question: "Pytanie wielokrotnego wyboru",
       optionsList: ["Opcja 1.", "Opcja 2."],
       type: PollSchema.QuestionType.CHECKBOX,
-      answersList: ["", ""],
+      answersList: ["3", "1"],
     },]
-  },
-  votesList: [{
-    questionsList: [{
-      question: "Pytanie otwarte",
-      optionsList: [],
-      type: PollSchema.QuestionType.OPEN,
-      answersList: ["Odpowiedź"],
-    },
-    {
-      question: "Pytanie zamknięte",
-      optionsList: ["Opcja 1.", "Opcja 2."],
-      type: PollSchema.QuestionType.CLOSE,
-      answersList: ["1", "0"],
-    },
-    {
-      question: "Pytanie wielokrotnego wyboru",
-      optionsList: ["Opcja 1.", "Opcja 2."],
-      type: PollSchema.QuestionType.CHECKBOX,
-      answersList: ["1", "1"],
-    },]
-  },
-  {
-    questionsList: [{
-      question: "Pytanie otwarte",
-      optionsList: [],
-      type: PollSchema.QuestionType.OPEN,
-      answersList: ["Kolejna odpowiedź"],
-    },
-    {
-      question: "Pytanie zamknięte",
-      optionsList: ["Opcja 1.", "Opcja 2."],
-      type: PollSchema.QuestionType.CLOSE,
-      answersList: ["0", "1"],
-    },
-    {
-      question: "Pytanie wielokrotnego wyboru",
-      optionsList: ["Opcja 1.", "Opcja 2."],
-      type: PollSchema.QuestionType.CHECKBOX,
-      answersList: ["1", "0"],
-    }]
-  },
-  {
-    questionsList: [{
-      question: "Pytanie otwarte",
-      optionsList: [],
-      type: PollSchema.QuestionType.OPEN,
-      answersList: ["Jeszcze jedna odpowiedź"],
-    },
-    {
-      question: "Pytanie zamknięte",
-      optionsList: ["Opcja 1.", "Opcja 2."],
-      type: PollSchema.QuestionType.CLOSE,
-      answersList: ["1", "0"],
-    },
-    {
-      question: "Pytanie wielokrotnego wyboru",
-      optionsList: ["Opcja 1.", "Opcja 2."],
-      type: PollSchema.QuestionType.CHECKBOX,
-      answersList: ["1", "0"],
-    }]
-  },
-  ]
+  }
 }

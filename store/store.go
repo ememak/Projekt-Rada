@@ -334,8 +334,9 @@ func SaveVote(db *bolt.DB, vr *query.VoteRequest) (*query.VoteReply, error) {
 // GetSummary reads poll's answers from database.
 func GetSummary(db *bolt.DB, pollid int32) (*query.PollSummary, error) {
 	s := &query.PollSummary{
-		Id:     pollid,
-		Schema: &query.PollSchema{},
+		Id:         pollid,
+		VotesCount: 0,
+		Schema:     &query.PollSchema{},
 	}
 	// Database db should be open before this call.
 	err := db.View(func(tx *bolt.Tx) error {
@@ -359,6 +360,7 @@ func GetSummary(db *bolt.DB, pollid int32) (*query.PollSummary, error) {
 
 		c := vbuck.Cursor()
 		for k, _ := c.First(); k != nil; k, _ = c.Next() {
+			s.VotesCount += 1
 			ansbuck := vbuck.Bucket(k)
 			pa := &query.PollSchema{}
 
@@ -368,7 +370,23 @@ func GetSummary(db *bolt.DB, pollid int32) (*query.PollSummary, error) {
 			if err != nil {
 				return fmt.Errorf("Failed to read vote from database in GetPoll: %w", err)
 			}
-			s.Votes = append(s.Votes, pa)
+
+			for i, qa := range pa.Questions {
+				if qa.Type == query.PollSchema_OPEN {
+					s.Schema.Questions[i].Answers = append(s.Schema.Questions[i].Answers, qa.Answers[0])
+				} else {
+					for j, ans := range qa.Answers {
+						b, err := strconv.ParseBool(ans)
+						if err != nil {
+							return fmt.Errorf("Value not convertable to boolean in answer for closed or checkbox question: %w", err)
+						}
+						if b {
+							v, _ := strconv.Atoi(s.Schema.Questions[i].Answers[j])
+							s.Schema.Questions[i].Answers[j] = strconv.Itoa(v + 1)
+						}
+					}
+				}
+			}
 		}
 		return nil
 	})

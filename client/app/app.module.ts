@@ -1,5 +1,6 @@
 import { NgModule } from '@angular/core';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
+import { GoogleChartsModule } from 'angular-google-charts';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from "@angular/material/card";
 import { MatCheckboxModule } from '@angular/material/checkbox'; 
@@ -23,6 +24,7 @@ import { VoteComponent } from './vote/vote.component';
     BrowserAnimationsModule,
     BrowserModule,
     FormsModule,
+    GoogleChartsModule,
     MatButtonModule,
     MatCardModule,
     MatCheckboxModule,

@@ -94,9 +94,9 @@ message PollQuestion {
 message PollSummary {
   int32 id = 1;
 
-  PollSchema schema = 2;
+  int32 votesCount = 2;
 
-  repeated PollSchema votes = 3;
+  PollSchema schema = 3;
 }
 
 // PublicKey is a RSA public key stored in PKCS1 format.
