@@ -4,8 +4,7 @@ import { Router } from '@angular/router';
 import { grpc } from '@improbable-eng/grpc-web';
 import { Query } from "Projekt_Rada/query/query_pb_service";
 import { PollQuestion, PollSchema } from "Projekt_Rada/query/query_pb";
-
-const host = "http://localhost:12345";
+import { host } from '../host';
 
 @Component({
   selector: 'poll-init',
@@ -71,7 +70,7 @@ export class PollInitComponent {
           console.log("pollInit.onEnd.message", message.toObject());
           let response = (<PollQuestion> message);
           let tokens = response.getTokensList();
-          this.download("tokens.txt", tokens);
+          this.download("tokeny.txt", tokens);
           let pollid: number = response.getId();
           this.router.navigate(['/results', pollid]);
         }

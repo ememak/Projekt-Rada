@@ -21,9 +21,11 @@ func Sign(key *rsa.PrivateKey, in []byte) *big.Int {
 // Input is a public key corresponding to key used for signing and sign, which is a pair
 // of numbers mod N. Sign is valid if hash(m) = (md)^e mod N.
 func Verify(key *rsa.PublicKey, m []byte, md []byte) bool {
+	mi := new(big.Int).SetBytes(m)
 	// We check if hash(m) = (md)^e mod N.
 	// If sign is correct, md = hash(m)^d and equality is satisfied.
-	hash := sha256.Sum256(m)
+	// For frontend reasons we are hashing here decimal representation of m.
+	hash := sha256.Sum256([]byte(mi.Text(10)))
 	// Calculate md^e mod N
 	mdi := new(big.Int).SetBytes(md)
 	bhi := new(big.Int).Exp(mdi, big.NewInt(int64(key.E)), key.N)

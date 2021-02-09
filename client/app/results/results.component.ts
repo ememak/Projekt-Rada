@@ -4,8 +4,7 @@ import { ActivatedRoute } from '@angular/router';
 import { grpc } from '@improbable-eng/grpc-web';
 import { Query } from "Projekt_Rada/query/query_pb_service";
 import { PollSchema, PollSummary, SummaryRequest } from "Projekt_Rada/query/query_pb";
-
-const host = "http://localhost:12345";
+import { host } from '../host';
 
 @Component({
   selector: 'results',

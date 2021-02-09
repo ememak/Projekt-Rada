@@ -32,6 +32,11 @@
         </mat-radio-group>
       </ng-template>
     </mat-card>
+    <mat-form-field appearance="fill">
+      <mat-label>Token</mat-label>
+      <input matInput [(ngModel)]="token" name="tokeninput">
+    </mat-form-field>
+    <br>
     <button mat-button color="primary">Wyślij ankietę</button>
   </form>
 </div>
