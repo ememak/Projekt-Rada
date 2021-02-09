@@ -23,10 +23,12 @@
               {{option}} - {{qa.answersList[j]}} głosów
             </ng-template>
           </li>
-          <google-chart [type]="'ColumnChart'" 
-                        [data]="input[i]" 
-                        [width]="800"
-                        [options]="{legend: {position: 'none'}}"></google-chart>
+          <ng-template [ngIf]="summary.votescount">
+            <google-chart [type]="'ColumnChart'" 
+                          [data]="input[i]" 
+                          [width]="800"
+                          [options]="{legend: {position: 'none'}}"></google-chart>
+          </ng-template>
         </ul>
       </ng-template>
       <ng-template [ngIf]="qa.type==2">
@@ -42,9 +44,11 @@
               {{option}} - {{qa.answersList[j]}} głosów
             </ng-template>
           </li>
-          <google-chart [type]="'PieChart'" 
-                        [data]="input[i]" 
-                        [width]="800"></google-chart>
+          <ng-template [ngIf]="summary.votescount">
+            <google-chart [type]="'PieChart'" 
+                          [data]="input[i]" 
+                          [width]="800"></google-chart>
+          </ng-template>
         </ul>
       </ng-template>
     </mat-card>

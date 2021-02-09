@@ -104,7 +104,7 @@ var testsPollInitOutEmpty = []struct {
 	},
 	{
 		exp_out: &query.PollQuestion{},
-		exp_err: fmt.Errorf("Error in PollInit while creating new poll in database: %w", fmt.Errorf("Error! Question contains non valid characters.")),
+		exp_err: fmt.Errorf("Error in PollInit while creating new poll in database: %w", fmt.Errorf("Error! Question contains invalid characters.")),
 	},
 }
 
@@ -154,7 +154,7 @@ var testsPollInitOut1Poll = []struct {
 	},
 	{
 		exp_out: &query.PollQuestion{},
-		exp_err: fmt.Errorf("Error in PollInit while creating new poll in database: %w", fmt.Errorf("Error! Question contains non valid characters.")),
+		exp_err: fmt.Errorf("Error in PollInit while creating new poll in database: %w", fmt.Errorf("Error! Question contains invalid characters.")),
 	},
 }
 
@@ -271,9 +271,7 @@ var testsSignBallot = []struct {
 		envelope: &query.EnvelopeToSign{
 			Envelope: []byte{1, 3, 4, 5, 6, 7, 8, 9, 0},
 			Pollid:   1,
-			Token: &query.VoteToken{
-				Token: []byte("Good token"),
-			},
+			Token:    "Good token",
 		},
 		exp_err: nil,
 	},
@@ -282,9 +280,7 @@ var testsSignBallot = []struct {
 		envelope: &query.EnvelopeToSign{
 			Envelope: []byte{1, 3, 4, 5, 6, 7, 8, 9, 0},
 			Pollid:   2,
-			Token: &query.VoteToken{
-				Token: []byte("Good token"),
-			},
+			Token:    "Good token",
 		},
 		exp_err: fmt.Errorf("No such poll: 2"),
 	},
@@ -293,9 +289,7 @@ var testsSignBallot = []struct {
 		envelope: &query.EnvelopeToSign{
 			Envelope: []byte{1, 3, 4, 5, 6, 7, 8, 9, 0},
 			Pollid:   -3,
-			Token: &query.VoteToken{
-				Token: []byte("Good token"),
-			},
+			Token:    "Good token",
 		},
 		exp_err: fmt.Errorf("No such poll: -3"),
 	},
@@ -304,9 +298,7 @@ var testsSignBallot = []struct {
 		envelope: &query.EnvelopeToSign{
 			Envelope: []byte{1, 3, 4, 5, 6, 7, 8, 9, 0},
 			Pollid:   1,
-			Token: &query.VoteToken{
-				Token: []byte("Bad token"),
-			},
+			Token:    "Bad token",
 		},
 		exp_err: fmt.Errorf("No such token"),
 	},
@@ -315,9 +307,7 @@ var testsSignBallot = []struct {
 		envelope: &query.EnvelopeToSign{
 			Envelope: nil,
 			Pollid:   1,
-			Token: &query.VoteToken{
-				Token: []byte("Good token"),
-			},
+			Token:    "Good token",
 		},
 		exp_err: fmt.Errorf("Error in SignBallot, envelope shouldn't be null"),
 	},
@@ -326,9 +316,7 @@ var testsSignBallot = []struct {
 		envelope: &query.EnvelopeToSign{
 			Envelope: []byte("Some random value\x01\x10!@#$%^&*()_+{}"),
 			Pollid:   1,
-			Token: &query.VoteToken{
-				Token: []byte("Good token"),
-			},
+			Token:    "Good token",
 		},
 		exp_err: nil,
 	},
@@ -353,9 +341,7 @@ var testsPollVote = []struct {
 		envelope: &query.EnvelopeToSign{
 			Envelope: hash,
 			Pollid:   1,
-			Token: &query.VoteToken{
-				Token: []byte("Good token"),
-			},
+			Token:    "Good token",
 		},
 		votereq: &query.VoteRequest{
 			Pollid:  1,
@@ -374,9 +360,7 @@ var testsPollVote = []struct {
 		envelope: &query.EnvelopeToSign{
 			Envelope: hash2,
 			Pollid:   1,
-			Token: &query.VoteToken{
-				Token: []byte("Good token"),
-			},
+			Token:    "Good token",
 		},
 		votereq: &query.VoteRequest{
 			Pollid:  1,
@@ -395,9 +379,7 @@ var testsPollVote = []struct {
 		envelope: &query.EnvelopeToSign{
 			Envelope: hash2,
 			Pollid:   1,
-			Token: &query.VoteToken{
-				Token: []byte("Good token"),
-			},
+			Token:    "Good token",
 		},
 		votereq: &query.VoteRequest{
 			Pollid:  0,
@@ -416,9 +398,7 @@ var testsPollVote = []struct {
 		envelope: &query.EnvelopeToSign{
 			Envelope: hash,
 			Pollid:   1,
-			Token: &query.VoteToken{
-				Token: []byte("Good token"),
-			},
+			Token:    "Good token",
 		},
 		votereq: &query.VoteRequest{
 			Pollid:  1,
@@ -437,9 +417,7 @@ var testsPollVote = []struct {
 		envelope: &query.EnvelopeToSign{
 			Envelope: hash,
 			Pollid:   1,
-			Token: &query.VoteToken{
-				Token: []byte("Good token"),
-			},
+			Token:    "Good token",
 		},
 		votereq: &query.VoteRequest{
 			Pollid: 1,
@@ -458,16 +436,14 @@ var testsPollVote = []struct {
 		exp_out: &query.VoteReply{
 			Mess: "Error in PollVote",
 		},
-		exp_err: fmt.Errorf("Error in PollVote while saving key in database: %w", fmt.Errorf("Error! Question contains non valid characters.")),
+		exp_err: fmt.Errorf("Error in PollVote while saving key in database: %w", fmt.Errorf("Error! Question contains invalid characters.")),
 	},
 	{ // test5 - negative, wrong characters
 		schema: &query.PollSchema{},
 		envelope: &query.EnvelopeToSign{
 			Envelope: hash,
 			Pollid:   1,
-			Token: &query.VoteToken{
-				Token: []byte("Good token"),
-			},
+			Token:    "Good token",
 		},
 		votereq: &query.VoteRequest{
 			Pollid: 1,
@@ -487,16 +463,14 @@ var testsPollVote = []struct {
 		exp_out: &query.VoteReply{
 			Mess: "Error in PollVote",
 		},
-		exp_err: fmt.Errorf("Error in PollVote while saving key in database: %w", fmt.Errorf("Error! Answer contains non valid characters.")),
+		exp_err: fmt.Errorf("Error in PollVote while saving key in database: %w", fmt.Errorf("Error! Answer contains invalid characters.")),
 	},
 	{ // test6 - negative, wrong characters
 		schema: &query.PollSchema{},
 		envelope: &query.EnvelopeToSign{
 			Envelope: hash,
 			Pollid:   1,
-			Token: &query.VoteToken{
-				Token: []byte("Good token"),
-			},
+			Token:    "Good token",
 		},
 		votereq: &query.VoteRequest{
 			Pollid: 1,
@@ -540,9 +514,7 @@ var testsEntireProtocol = struct {
 	envelope: &query.EnvelopeToSign{
 		Envelope: nil,
 		Pollid:   1,
-		Token: &query.VoteToken{
-			Token: []byte("Good token"),
-		},
+		Token:    "Good token",
 	},
 	votereq: &query.VoteRequest{
 		Pollid: 1,

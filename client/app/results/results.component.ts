@@ -1,8 +1,9 @@
 import { Component } from '@angular/core';
+import { ActivatedRoute } from '@angular/router';
 
 import { grpc } from '@improbable-eng/grpc-web';
 import { Query } from "Projekt_Rada/query/query_pb_service";
-import { PollSchema, PollSummary } from "Projekt_Rada/query/query_pb";
+import { PollSchema, PollSummary, SummaryRequest } from "Projekt_Rada/query/query_pb";
 
 const host = "http://localhost:12345";
 
@@ -15,15 +16,44 @@ export class ResultsComponent {
 
   input: any[] = [];
 
-  constructor () {
-    for (let qa of this.summary.schema.questionsList) {
-      let r = [];
-      for(let [i, opt] of qa.optionsList.entries()) {
-        r.push([opt, parseInt(qa.answersList[i])]);
+  pollid: number;
+
+  constructor (private route: ActivatedRoute) {
+    this.pollid = parseInt(this.route.snapshot.paramMap.get('pollid'));
+    console.log(this.pollid)
+    if(isNaN(this.pollid)){
+      for (let qa of this.summary.schema.questionsList) {
+        let r = [];
+        for(let [i, opt] of qa.optionsList.entries()) {
+          r.push([opt, parseInt(qa.answersList[i])]);
+        }
+        this.input.push(r)
       }
-      this.input.push(r)
-    }
-    console.log("here")
+    } 
+    else {
+    let request: SummaryRequest = new SummaryRequest();
+    request.setPollid(this.pollid);
+    grpc.unary(Query.GetSummary, {
+      request: request,
+      host: host,
+      onEnd: res => {
+        const { status, statusMessage, headers, message, trailers } = res;
+        console.log("pollInit.onEnd.status", status, statusMessage);
+        console.log("pollInit.onEnd.headers", headers);
+        if (status === grpc.Code.OK && message) {
+          console.log("pollInit.onEnd.message", message.toObject());
+          this.summary = (<PollSummary>message).toObject()
+          for (let qa of this.summary.schema.questionsList) {
+            let r = [];
+            for(let [i, opt] of qa.optionsList.entries()) {
+              r.push([opt, parseInt(qa.answersList[i])]);
+            }
+            this.input.push(r)
+          }
+        }
+        console.log("pollInit.onEnd.trailers", trailers);
+      }
+    });}
   }
 
   trackOption(index: number, option: string) {

@@ -12,6 +12,7 @@
         "@angular/router": "10.0.2",
         "angular-google-charts": "2.0.1",
         "google-protobuf": "3.13.0",
+        "node-rsa": "1.1.1",
         "rxjs": "6.5.3",
         "tslib": "2.0.0",
         "zone.js": "0.10.3"

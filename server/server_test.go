@@ -83,7 +83,7 @@ func TestSignBallot(t *testing.T) {
 		t.Run("Test "+strconv.Itoa(i), func(t *testing.T) {
 			ctx := context.Background()
 			s.PollInit(ctx, test.schema)
-			store.SaveToken(s.data, []byte("Good token"), 1)
+			store.SaveToken(s.data, "Good token", 1)
 			se, err := s.SignBallot(ctx, test.envelope)
 			if !reflect.DeepEqual(err, test.exp_err) {
 				t.Errorf("Error %v, want error %v", err, test.exp_err)
@@ -109,7 +109,7 @@ func TestPollVote(t *testing.T) {
 		t.Run("Test "+strconv.Itoa(i), func(t *testing.T) {
 			ctx := context.Background()
 			s.PollInit(ctx, test.schema)
-			store.SaveToken(s.data, []byte("Good token"), 1)
+			store.SaveToken(s.data, "Good token", 1)
 			se, _ := s.SignBallot(ctx, test.envelope)
 			test.votereq.Sign.Sign = se.Sign
 			vr, err := s.PollVote(ctx, test.votereq)
@@ -147,7 +147,7 @@ func TestEntireProtocol(t *testing.T) {
 			t.Errorf("Key parsing failed, error: %v", err)
 			return
 		}
-		err = store.SaveToken(s.data, []byte("Good token"), 1)
+		err = store.SaveToken(s.data, "Good token", 1)
 		if err != nil {
 			t.Errorf("SaveToken failed, error: %v", err)
 			return

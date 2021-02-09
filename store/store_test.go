@@ -8,7 +8,6 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/ememak/Projekt-Rada/query"
 	"github.com/golang/protobuf/proto"
 )
 
@@ -112,20 +111,17 @@ func TestAcceptToken(t *testing.T) {
 				t.Errorf("Error %v, want nil error", err, test.st_err)
 			}
 
-			token := &query.VoteToken{
-				Token: test.token,
-			}
 			pq, err := GetPoll(data, test.pollid)
 			if !reflect.DeepEqual(err, test.gp_err) {
 				t.Errorf("Error %v, want error %v", err, test.gp_err)
 			}
 			if test.st_err == nil {
-				if !proto.Equal(pq.Tokens[0], token) {
-					t.Errorf("Output %v, want output %v", pq.Tokens[0], token)
+				if !reflect.DeepEqual(pq.Tokens[0], test.token) {
+					t.Errorf("Output %v, want output %v", pq.Tokens[0], test.token)
 				}
 			}
 
-			err = AcceptToken(data, token, test.pollid)
+			err = AcceptToken(data, test.token, test.pollid)
 			if !reflect.DeepEqual(err, test.at_err) {
 				t.Errorf("Error %v, want error %v", err, test.at_err)
 				return
@@ -143,23 +139,20 @@ func TestAcceptToken(t *testing.T) {
 			t.Errorf("Error %v, want error %v", err, test.st_err)
 		}
 
-		token := &query.VoteToken{
-			Token: test.token,
-		}
 		pq, err := GetPoll(data, test.pollid)
 		if !reflect.DeepEqual(err, test.gp_err) {
 			t.Errorf("Error %v, want error %v", err, test.gp_err)
 		}
 		if test.st_err == nil {
-			if !proto.Equal(pq.Tokens[0], token) {
-				t.Errorf("Output %v, want output %v", pq.Tokens[0], token)
+			if !reflect.DeepEqual(pq.Tokens[0], test.token) {
+				t.Errorf("Output %v, want output %v", pq.Tokens[0], test.token)
 			}
 		}
-		err = AcceptToken(data, token, test.pollid)
+		err = AcceptToken(data, test.token, test.pollid)
 		if !reflect.DeepEqual(err, test.at_err) {
 			t.Errorf("Error %v, want error %v", err, test.at_err)
 		}
-		err = AcceptToken(data, token, test.pollid)
+		err = AcceptToken(data, test.token, test.pollid)
 		if !reflect.DeepEqual(err, rep_err) {
 			t.Errorf("Error %v, want error %v", err, rep_err)
 		}
@@ -189,6 +182,29 @@ func TestSaveVote(t *testing.T) {
 					t.Errorf("Answers %v, want output %v", pq.Votes[0].Answers, test.in.Answers)
 					t.Errorf("Sign %v, want output %v", pq.Votes[0].Sign, test.in.Sign)
 				}
+			}
+		})
+		data.Close()
+	}
+}
+
+func TestGetSummary(t *testing.T) {
+	in := testsGetSummary
+	for i, test := range in {
+
+		data, _ := DBInit("testGS" + strconv.Itoa(i) + ".db")
+		t.Run("Test "+strconv.Itoa(i), func(t *testing.T) {
+			NewPoll(data, test.schema)
+			vr, err := SaveVote(data, test.in)
+			if !(reflect.DeepEqual(err, test.sv_err) && proto.Equal(vr, test.sv_out)) {
+				t.Errorf("Output %v, want output %v", vr, test.sv_out)
+				t.Errorf("Error %v, want error %v", err, test.sv_err)
+			}
+
+			ps, err := GetSummary(data, test.in.Pollid)
+			if !reflect.DeepEqual(err, test.gs_err) || !reflect.DeepEqual(ps, test.gs_out) {
+				t.Errorf("Output %v, want output %v", ps, test.gs_out)
+				t.Errorf("Error %v, want error %v", err, test.gs_err)
 			}
 		})
 		data.Close()

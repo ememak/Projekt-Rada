@@ -124,35 +124,35 @@ var testsSaveKey = []struct {
 }
 
 var testsAcceptToken = []struct {
-	token  []byte
+	token  string
 	pollid int32
 	st_err error
 	gp_err error
 	at_err error
 }{
 	{ // test0 - positive
-		token:  []byte("GoodToken"),
+		token:  "GoodToken",
 		pollid: 1,
 		st_err: nil,
 		gp_err: nil,
 		at_err: nil,
 	},
 	{ // test1 - negative, wrong poll requested
-		token:  []byte("GoodToken"),
+		token:  "GoodToken",
 		pollid: 2,
 		st_err: fmt.Errorf("Poll ID does not exist in database. SaveToken: 2"),
 		gp_err: fmt.Errorf("Poll ID does not exist in database. GetPoll: 2"),
 		at_err: fmt.Errorf("No such poll: 2"),
 	},
 	{ // test2 - negative, token can't be empty
-		token:  []byte(""),
+		token:  "",
 		pollid: 1,
 		st_err: fmt.Errorf("key required"),
 		gp_err: nil,
 		at_err: fmt.Errorf("No such token"),
 	},
 	{ // test3 - positive
-		token:  []byte{200, 235, 239, 61, 75, 253, 155, 22, 139, 151, 158, 172, 35, 68, 192, 61, 65, 159, 101, 47, 90, 93, 218, 42, 49, 50, 32, 3, 71, 10, 28, 202, 158, 245, 51, 8, 194, 26, 105, 179, 209, 157, 190, 20, 55, 190, 129, 244, 10, 92, 130, 72, 151, 74, 111, 135, 8, 244, 121, 145, 217, 85, 152, 167, 94, 21, 16, 176, 197, 195, 82, 194, 230, 184, 73, 111, 44, 28, 32, 194, 26, 108, 93, 120, 214, 9, 85, 11, 120, 250, 157, 252, 74, 19, 53, 40, 11, 191, 208, 153, 103}, //random 100 bytes
+		token:  "20023523961752531552213915115817235681926165", //some random numbers
 		pollid: 1,
 		st_err: nil,
 		gp_err: nil,
@@ -172,11 +172,13 @@ var testsSaveVote = []struct {
 			Answers: &query.PollSchema{
 				Questions: []*query.PollSchema_QA{
 					{
-						Question: "Do you like this system? Options: yes/no Answer: yes",
+						Question: "Do you like this system?",
+						Options:  []string{"yes", "no"},
 						Type:     query.PollSchema_CLOSE,
+						Answers:  []string{"true", "false"},
 					},
 					{
-						Question: "Why? Answer: Its cool.",
+						Question: "Why?",
 						Type:     query.PollSchema_OPEN,
 					},
 				}},
@@ -197,12 +199,15 @@ var testsSaveVote = []struct {
 			Answers: &query.PollSchema{
 				Questions: []*query.PollSchema_QA{
 					{
-						Question: "Do you like this system? Options: yes/no Answer: yes",
+						Question: "Do you like this system?",
+						Options:  []string{"yes", "no"},
 						Type:     query.PollSchema_CLOSE,
+						Answers:  []string{"true", "false"},
 					},
 					{
-						Question: "Why? Answer: Its cool.",
+						Question: "Why?",
 						Type:     query.PollSchema_OPEN,
+						Answers:  []string{"Its cool."},
 					},
 				}},
 			Sign: &query.RSASignature{
@@ -220,9 +225,10 @@ var testsSaveVote = []struct {
 			Answers: &query.PollSchema{
 				Questions: []*query.PollSchema_QA{
 					{
-						Question: "Do you like this system? Options: yes/no",
+						Question: "Do you like this system?",
+						Options:  []string{"yes", "no"},
 						Type:     query.PollSchema_CLOSE,
-						Answers:  []string{"yes"},
+						Answers:  []string{"true", "false"},
 					},
 					{
 						Question: "Why?",
@@ -267,9 +273,10 @@ var testsSaveVote = []struct {
 			Answers: &query.PollSchema{
 				Questions: []*query.PollSchema_QA{
 					{
-						Question: "Do you like this system? Options: yes/no",
+						Question: "Do you like this system?",
+						Options:  []string{"yes", "no"},
 						Type:     query.PollSchema_CLOSE,
-						Answers:  []string{"yes"},
+						Answers:  []string{"true", "false"},
 					},
 					{
 						Question: "\x01\x21\xae", // Non valid characters
@@ -285,5 +292,77 @@ var testsSaveVote = []struct {
 		reply:  &query.VoteReply{},
 		sv_err: fmt.Errorf("Error! Question contains invalid characters."),
 		gp_err: nil,
+	},
+}
+
+var testsGetSummary = []struct {
+	schema *query.PollSchema
+	in     *query.VoteRequest
+	sv_out *query.VoteReply
+	sv_err error
+	gs_out *query.PollSummary
+	gs_err error
+}{
+	{ // test0 - positive
+		schema: &query.PollSchema{
+			Questions: []*query.PollSchema_QA{
+				{
+					Question: "Do you like this system?",
+					Options:  []string{"yes", "no"},
+					Type:     query.PollSchema_CLOSE,
+					Answers:  []string{"0", "0"},
+				},
+				{
+					Question: "Why?",
+					Type:     query.PollSchema_OPEN,
+				},
+			},
+		},
+		in: &query.VoteRequest{
+			Pollid: 1,
+			Answers: &query.PollSchema{
+				Questions: []*query.PollSchema_QA{
+					{
+						Question: "Do you like this system?",
+						Options:  []string{"yes", "no"},
+						Type:     query.PollSchema_CLOSE,
+						Answers:  []string{"true", "false"},
+					},
+					{
+						Question: "Why?",
+						Type:     query.PollSchema_OPEN,
+						Answers:  []string{"Its cool."},
+					},
+				},
+			},
+			Sign: &query.RSASignature{
+				Ballot: []byte{1}, // Here RSA signature is not checked, but it can't be empty
+				Sign:   []byte{1},
+			},
+		},
+		sv_out: &query.VoteReply{
+			Mess: "Thank you for your vote!",
+		},
+		sv_err: nil,
+		gs_out: &query.PollSummary{
+			Id:         1,
+			VotesCount: 1,
+			Schema: &query.PollSchema{
+				Questions: []*query.PollSchema_QA{
+					{
+						Question: "Do you like this system?",
+						Options:  []string{"yes", "no"},
+						Type:     query.PollSchema_CLOSE,
+						Answers:  []string{"1", "0"},
+					},
+					{
+						Question: "Why?",
+						Type:     query.PollSchema_OPEN,
+						Answers:  []string{"Its cool."},
+					},
+				},
+			},
+		},
+		gs_err: nil,
 	},
 }

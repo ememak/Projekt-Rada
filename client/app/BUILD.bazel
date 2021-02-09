@@ -29,4 +29,3 @@ ng_ts_library(
         "@npm//google-protobuf",
     ],
 )
-
