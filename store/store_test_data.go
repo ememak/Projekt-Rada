@@ -57,7 +57,7 @@ var testsNewPoll = []struct {
 				},
 			},
 		},
-		exp_err: fmt.Errorf("Error! Question contains non valid characters."),
+		exp_err: fmt.Errorf("Error! Question contains invalid characters."),
 	},
 	{
 		in: &query.PollSchema{ // test2 - negative, wrong question type
@@ -236,7 +236,7 @@ var testsSaveVote = []struct {
 			},
 		},
 		reply:  &query.VoteReply{},
-		sv_err: fmt.Errorf("Error! Answer contains non valid characters."),
+		sv_err: fmt.Errorf("Error! Answer contains invalid characters."),
 		gp_err: nil,
 	},
 	{ // test3 - positive
@@ -283,7 +283,7 @@ var testsSaveVote = []struct {
 			},
 		},
 		reply:  &query.VoteReply{},
-		sv_err: fmt.Errorf("Error! Question contains non valid characters."),
+		sv_err: fmt.Errorf("Error! Question contains invalid characters."),
 		gp_err: nil,
 	},
 }

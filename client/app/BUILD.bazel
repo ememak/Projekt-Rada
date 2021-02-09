@@ -24,6 +24,7 @@ ng_ts_library(
         "@npm//@angular/material",
         "@npm//@angular/platform-browser",
         "@npm//@angular/router",
+        "@npm//angular-google-charts",
         "@npm//@improbable-eng/grpc-web",
         "@npm//google-protobuf",
     ],

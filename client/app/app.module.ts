@@ -1,5 +1,6 @@
 import { NgModule } from '@angular/core';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
+import { GoogleChartsModule } from 'angular-google-charts';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from "@angular/material/card";
 import { MatCheckboxModule } from '@angular/material/checkbox'; 
@@ -13,6 +14,7 @@ import { AppRoutingModule } from './app-routing.module';
 import { AppComponent } from './app.component';
 import { PollInitComponent } from './pollinit/pollinit.component';
 import { TopBarComponent } from './top-bar/top-bar.component';
+import { ResultsComponent } from './results/results.component';
 import { VoteComponent } from './vote/vote.component';
 
 
@@ -22,6 +24,7 @@ import { VoteComponent } from './vote/vote.component';
     BrowserAnimationsModule,
     BrowserModule,
     FormsModule,
+    GoogleChartsModule,
     MatButtonModule,
     MatCardModule,
     MatCheckboxModule,
@@ -35,6 +38,7 @@ import { VoteComponent } from './vote/vote.component';
     AppComponent,
     TopBarComponent,
     PollInitComponent,
+    ResultsComponent,
     VoteComponent
   ],
   bootstrap: [ AppComponent ]

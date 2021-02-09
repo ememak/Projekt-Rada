@@ -44,12 +44,12 @@ export class VoteComponent {
     for(let qa of this.questionsList){
       if(qa.type==PollSchema.QuestionType.CLOSE){
         qa.answersList = qa.answersList.map((ans, index) => {
-          return parseInt(qa.answersList[0])==index?"true":"false";
+          return parseInt(qa.answersList[0])==index?"1":"0";
         })
       }
       if(qa.type==PollSchema.QuestionType.CHECKBOX){
         qa.answersList = qa.answersList.map((ans, index) => {
-          return ans==""?"false":ans;
+          return ans==""?"0":ans;
         })
       }
     }

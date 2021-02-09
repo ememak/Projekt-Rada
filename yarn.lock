@@ -159,10 +159,10 @@
   dependencies:
     tslib "^2.0.0"
 
-"@bazel/angular@^3.0.0":
-  version "3.0.0"
-  resolved "https://registry.yarnpkg.com/@bazel/angular/-/angular-3.0.0.tgz#908c27cbb3894f8a68f5e88251e59c040b766eff"
-  integrity sha512-o/VE5r5CsfaQk3RNy+yH2Gylq1qIwln/vqgueucE0eO9bx6M+TxX+7I7xLlpq5Lcw/C9D/cXYFEPqs6jNA6cIg==
+"@bazel/angular@3.1.0":
+  version "3.1.0"
+  resolved "https://registry.yarnpkg.com/@bazel/angular/-/angular-3.1.0.tgz#9e9c53f35dbea9cad67e05f0115c4c168e6a7b5d"
+  integrity sha512-DED4VNc6q8hwKR4wbooptSuvQFghcbEpn5ipSLMId0RGYWIR3H5R2dtf+0G6riJ95Qm2hOr89IGw2nOSb9VddA==
   dependencies:
     "@angular-devkit/architect" "^0.901.7"
     "@bazel/bazelisk" "^1.4.0"
@@ -173,10 +173,10 @@
   resolved "https://registry.yarnpkg.com/@bazel/bazelisk/-/bazelisk-1.4.0.tgz#401d7b89b8d89dd579d1e16cc24cd4d9281a4fbb"
   integrity sha512-VNI/jF7baQiBy4x+u8gmSDsFehqaAuzMyLuCj0j6/aZCZSw2OssytJVj73m8sFYbXgj67D8iYEQ0gbuoafDk6w==
 
-"@bazel/concatjs@^3.0.0":
-  version "3.0.0"
-  resolved "https://registry.yarnpkg.com/@bazel/concatjs/-/concatjs-3.0.0.tgz#8a8b0c90ffcea4ed74a7c8db8fd37af861df394e"
-  integrity sha512-JQTKFxWY6KQwfwqQRJCJtg8sQBN0ydTvV/5umTIC9wUz+1RdVRzGVtypYuY+V8wbTWB7Pt3cr+6eq9tPjPSFWQ==
+"@bazel/concatjs@3.1.0":
+  version "3.1.0"
+  resolved "https://registry.yarnpkg.com/@bazel/concatjs/-/concatjs-3.1.0.tgz#401099b03d47678af2fe4a4fb3f8ca94800ce235"
+  integrity sha512-Jsve0lgOk9fD+KlsqYwrYc8MFsy+olNw+uv2l0Oxo2QMheUDMbcuUWg+AHmc3EOjZGSOJGJ0xw1SAvY7b5YNDQ==
   dependencies:
     protobufjs "6.8.8"
     source-map-support "0.5.9"
@@ -187,10 +187,10 @@
   resolved "https://registry.yarnpkg.com/@bazel/ibazel/-/ibazel-0.13.1.tgz#23788f67a6fbe83d96f2d055691df4917c10ac8d"
   integrity sha512-FO1hBKpzpeBL0adnFYF2Dwl/7gox6ccKM6bb+x26AXrQpLbinXPuTi4zeXRL/MW4383mF6i4RovLCmwUU/YW0w==
 
-"@bazel/typescript@^3.0.0":
-  version "3.0.0"
-  resolved "https://registry.yarnpkg.com/@bazel/typescript/-/typescript-3.0.0.tgz#7cb3bcf405c590228888be78b9e49d1dc298dfea"
-  integrity sha512-qYsfyi/+7QOFP9uVAv3gKaqkxo+fIamFrdQ71K85FlJSowxAkwj51pxOPnIWBcMzFVNv1p2ZyfM3ZctKqGye2g==
+"@bazel/typescript@3.1.0":
+  version "3.1.0"
+  resolved "https://registry.yarnpkg.com/@bazel/typescript/-/typescript-3.1.0.tgz#a07999ad7956b8c624604a521e653570bba32025"
+  integrity sha512-sEWuvkUGIDeRhjLENHtJyop7wu4UqKN8h/nSgUwc5gkpWXQiT2wGH5jKVxBqODOBHB+IInEMtAjyRmCT+HbSHA==
   dependencies:
     protobufjs "6.8.8"
     semver "5.6.0"
@@ -284,6 +284,11 @@
   version "1.1.1"
   resolved "https://registry.yarnpkg.com/@types/color-name/-/color-name-1.1.1.tgz#1c1261bbeaa10a8055bbc5d8ab84b7b2afc846a0"
   integrity sha512-rr+OQyAjxze7GgWrSaJwydHStIhHq2lvY3BOC2Mj7KnzI7XK0Uw1TOOdI9lDoajEbSWLiYgoo4f1R51erQfhPQ==
+
+"@types/google.visualization@^0.0.52":
+  version "0.0.52"
+  resolved "https://registry.yarnpkg.com/@types/google.visualization/-/google.visualization-0.0.52.tgz#3bf7ff3449be10250e59b5919fbbf5d93c251dca"
+  integrity sha512-zyY6z8JswGNRVK2TwZGOGLnRKiBdHAAyj5SwBMRwPM0DclvwMR91GZHiXH2/hNPJNlc3VdmFDQPVl1zzSYN6pw==
 
 "@types/jasmine@3.4.0":
   version "3.4.0"
@@ -381,6 +386,14 @@ ajv@^6.5.5:
     fast-json-stable-stringify "^2.0.0"
     json-schema-traverse "^0.4.1"
     uri-js "^4.2.2"
+
+angular-google-charts@2.0.1:
+  version "2.0.1"
+  resolved "https://registry.yarnpkg.com/angular-google-charts/-/angular-google-charts-2.0.1.tgz#47cc9089ee4c6c7385796e74ccae9eb054fc4182"
+  integrity sha512-8N/QYbevfY7XYmCb4S8LD/ar4HbWzjOA3TkfA75iYyxiFgcYQ+6VKur0VSBF4FOyNVEt7b3jghxZeKikrVJ2dQ==
+  dependencies:
+    "@types/google.visualization" "^0.0.52"
+    tslib "^2.0.0"
 
 ansi-colors@4.1.1:
   version "4.1.1"
@@ -3863,10 +3876,10 @@ typedarray@^0.0.6:
   resolved "https://registry.yarnpkg.com/typedarray/-/typedarray-0.0.6.tgz#867ac74e3864187b1d3d47d996a78ec5c8830777"
   integrity sha1-hnrHTjhkGHsdPUfZlqeOxciDB3c=
 
-typescript@^3.9.0:
-  version "3.9.3"
-  resolved "https://registry.yarnpkg.com/typescript/-/typescript-3.9.3.tgz#d3ac8883a97c26139e42df5e93eeece33d610b8a"
-  integrity sha512-D/wqnB2xzNFIcoBG9FG8cXRDjiqSTbG2wd8DMZeQyJlP1vfTkIxH4GKveWaEBYySKIg+USu+E+EDIR47SqnaMQ==
+typescript@3.9.7:
+  version "3.9.7"
+  resolved "https://registry.yarnpkg.com/typescript/-/typescript-3.9.7.tgz#98d600a5ebdc38f40cb277522f12dc800e9e25fa"
+  integrity sha512-BLbiRkiBzAwsjut4x/dsibSTB6yWpwT5qWmC2OfuCg3GgVQCSgMs4vEctYPhsaGtd0AeuuHMkjZ2h2WG8MSzRw==
 
 ultron@~1.1.0:
   version "1.1.1"

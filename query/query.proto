@@ -18,6 +18,10 @@ service Query {
   // PollVote get a signed vote from client, check its validity and saves it.
   rpc PollVote(VoteRequest) returns (VoteReply) {
   }
+
+  // GetSummary get a summary of all votes from server.
+  rpc GetSummary(SummaryRequest) returns (PollSummary) {
+  }
 }
 
 // EnvelopeToSign exchange token for authorizing a ballot.
@@ -86,6 +90,15 @@ message PollQuestion {
   repeated PollAnswer votes = 4;
 }
 
+// PollSummary contains answers for one poll.
+message PollSummary {
+  int32 id = 1;
+
+  int32 votesCount = 2;
+
+  PollSchema schema = 3;
+}
+
 // PublicKey is a RSA public key stored in PKCS1 format.
 message PublicKey {
   bytes key = 1;
@@ -108,6 +121,11 @@ message RSASignature {
 message SignedEnvelope {
   bytes envelope = 1;
   bytes sign = 2;
+}
+
+// SummaryRequest is sent to get a summary of all votes for a poll.
+message SummaryRequest {
+  int32 pollid = 1;
 }
 
 // VoteReply is a sent after voting.

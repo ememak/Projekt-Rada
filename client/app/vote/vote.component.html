@@ -12,8 +12,8 @@
       <ng-template [ngIf]="qa.type==1">
         <ul>
           <li *ngFor="let option of qa.optionsList;let j = index;trackBy: trackOption">
-            <mat-checkbox (ngModel)="qa.answersList[j]=='true'?true:false"
-                          (ngModelChange)="qa.answersList[j]=$event?'true':'false'"
+            <mat-checkbox (ngModel)="qa.answersList[j]=='1'?1:0"
+                          (ngModelChange)="qa.answersList[j]=$event?'1':'0'"
                           name="qa-{{i}}-option-ch-{{j}}">
               {{option}}
             </mat-checkbox>
@@ -35,9 +35,3 @@
     <button mat-button color="primary">Wyślij ankietę</button>
   </form>
 </div>
-
-<!-- 
-Copyright Google LLC. All Rights Reserved.
-Use of this source code is governed by an MIT-style license that
-can be found in the LICENSE file at https://angular.io/license
--->

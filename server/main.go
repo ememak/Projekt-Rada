@@ -133,6 +133,11 @@ func (s *server) PollVote(ctx context.Context, in *query.VoteRequest) (*query.Vo
 	return vr, nil
 }
 
+// GetSummary sends all answers for a poll.
+func (s *server) GetSummary(ctx context.Context, in *query.SummaryRequest) (*query.PollSummary, error) {
+	return store.GetSummary(s.data, in.Pollid)
+}
+
 func serverInit(dbfilename string) (*server, error) {
 	var err error
 	s := &server{}

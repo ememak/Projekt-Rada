@@ -330,3 +330,65 @@ func SaveVote(db *bolt.DB, vr *query.VoteRequest) (*query.VoteReply, error) {
 	})
 	return reply, err
 }
+
+// GetSummary reads poll's answers from database.
+func GetSummary(db *bolt.DB, pollid int32) (*query.PollSummary, error) {
+	s := &query.PollSummary{
+		Id:         pollid,
+		VotesCount: 0,
+		Schema:     &query.PollSchema{},
+	}
+	// Database db should be open before this call.
+	err := db.View(func(tx *bolt.Tx) error {
+		pollsbuck := tx.Bucket([]byte("PollsBucket"))
+
+		pbuck := pollsbuck.Bucket([]byte("Poll" + strconv.Itoa(int(pollid)) + "Bucket"))
+		if pbuck == nil {
+			return fmt.Errorf("Poll ID does not exist in database. GetPoll: %v", pollid)
+		}
+
+		// Read Schema stored as bytes converted via proto.Marchal.
+		binschema := pbuck.Get([]byte("Schema"))
+		err := proto.Unmarshal(binschema, s.Schema)
+		if err != nil {
+			return fmt.Errorf("Failed to read schema from database in GetPoll: %w", err)
+		}
+
+		// Votes are stored in VotesBucket.
+		// Each vote is a different bucket inside VotesBucket, with name Vote+nr.
+		vbuck := pbuck.Bucket([]byte("VotesBucket"))
+
+		c := vbuck.Cursor()
+		for k, _ := c.First(); k != nil; k, _ = c.Next() {
+			s.VotesCount += 1
+			ansbuck := vbuck.Bucket(k)
+			pa := &query.PollSchema{}
+
+			binans := ansbuck.Get([]byte("Answer"))
+			// Read Answers stored as bytes converted via proto.Marchal.
+			err := proto.Unmarshal(binans, pa)
+			if err != nil {
+				return fmt.Errorf("Failed to read vote from database in GetPoll: %w", err)
+			}
+
+			for i, qa := range pa.Questions {
+				if qa.Type == query.PollSchema_OPEN {
+					s.Schema.Questions[i].Answers = append(s.Schema.Questions[i].Answers, qa.Answers[0])
+				} else {
+					for j, ans := range qa.Answers {
+						b, err := strconv.ParseBool(ans)
+						if err != nil {
+							return fmt.Errorf("Value not convertable to boolean in answer for closed or checkbox question: %w", err)
+						}
+						if b {
+							v, _ := strconv.Atoi(s.Schema.Questions[i].Answers[j])
+							s.Schema.Questions[i].Answers[j] = strconv.Itoa(v + 1)
+						}
+					}
+				}
+			}
+		}
+		return nil
+	})
+	return s, err
+}
