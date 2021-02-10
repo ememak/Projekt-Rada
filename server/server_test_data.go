@@ -323,11 +323,13 @@ var testsSignBallot = []struct {
 }
 
 // For simplicity there is no blinding in this tests.
-// Hash of "12345678"
-var hash, _ = hex.DecodeString("ef797c8118f02dfb649607dd5d3f8c7623048c9c063d532cc95c5ed7a898a64f")
+// Hash of "12345678" treated as integer with base 256
+var hash, _ = hex.DecodeString("d95259c12bc298fd38ff8e43436e61e31281d22eb3fa37eb7956cf03f3a1081b")
 
-// Hash of "rvrbhd54":^V(B)*TBytvw.ucq<{_@x-mzua"
-var hash2, _ = hex.DecodeString("563b5c8ae85cabe26529b9857d4b503e6da069389bbb94490cf1873176d7ff94")
+// Hash of "rvrbhd54":^V(B)*TBytvw.ucq<{_@x-mzua" treated as integer with base 256
+var hash2, _ = hex.DecodeString("c09a91f0964f321c9d8ba8506a8cf2743ce46cd1db2772d876da23b6c476b3a5")
+
+//"563b5c8ae85cabe26529b9857d4b503e6da069389bbb94490cf1873176d7ff94")
 
 var testsPollVote = []struct {
 	schema   *query.PollSchema

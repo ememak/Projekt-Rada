@@ -116,7 +116,14 @@ func TestAcceptToken(t *testing.T) {
 				t.Errorf("Error %v, want error %v", err, test.gp_err)
 			}
 			if test.st_err == nil {
-				if !reflect.DeepEqual(pq.Tokens[0], test.token) {
+				found := false
+				for _, tok := range pq.Tokens {
+					if reflect.DeepEqual(tok, test.token) {
+						found = true
+						break
+					}
+				}
+				if !found {
 					t.Errorf("Output %v, want output %v", pq.Tokens[0], test.token)
 				}
 			}
@@ -144,7 +151,14 @@ func TestAcceptToken(t *testing.T) {
 			t.Errorf("Error %v, want error %v", err, test.gp_err)
 		}
 		if test.st_err == nil {
-			if !reflect.DeepEqual(pq.Tokens[0], test.token) {
+			found := false
+			for _, tok := range pq.Tokens {
+				if reflect.DeepEqual(tok, test.token) {
+					found = true
+					break
+				}
+			}
+			if !found {
 				t.Errorf("Output %v, want output %v", pq.Tokens[0], test.token)
 			}
 		}
