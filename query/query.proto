@@ -32,7 +32,7 @@ service Query {
 message EnvelopeToSign {
   bytes envelope = 1;
   int32 pollid = 2;
-  VoteToken token = 3;
+  string token = 3;
 }
 
 // PollWithPublicKey contains RSA public key and questions of previously requested poll.
@@ -85,7 +85,7 @@ message PollQuestion {
 
   PollSchema schema = 2;
 
-  repeated VoteToken tokens = 3;
+  repeated string tokens = 3;
 
   repeated PollAnswer votes = 4;
 }
@@ -143,11 +143,4 @@ message VoteRequest {
   int32 pollid = 1;        // Which poll is answered.
   PollSchema answers = 2;  // Answers to all questions.
   RSASignature sign = 3;   // RSA blind signature.
-}
-
-// VoteToken is a permission to vote in a specific poll.
-//
-// Token value inside is random number (it only have to be unique).
-message VoteToken {
-  bytes token = 1;
 }

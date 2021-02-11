@@ -121,6 +121,13 @@ go_repository(
   commit = "c41aec40b27f0eeb2b94300fffcd624c69b02990"
 )
 
+go_repository(
+  name = "com_github_google_uuid",
+  importpath = "github.com/google/uuid",
+  sum = "h1:qJYtXnJRWmpe7m/3XlyhrsLrEURqHRM2kxzoxXqyUDs=",
+  version = "v1.2.0"
+)
+
 # Fetch rules_nodejs so we can install our npm dependencies
 http_archive(
     name = "build_bazel_rules_nodejs",

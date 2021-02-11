@@ -49,6 +49,7 @@ import (
 
 	"github.com/ememak/Projekt-Rada/query"
 	"github.com/golang/protobuf/proto"
+	"github.com/google/uuid"
 	bolt "go.etcd.io/bbolt"
 )
 
@@ -160,9 +161,14 @@ func NewPoll(db *bolt.DB, sch *query.PollSchema) (*query.PollQuestion, error) {
 			return err
 		}
 
-		_, err = pbuck.CreateBucketIfNotExists([]byte("TokensBucket"))
+		tbuck, err := pbuck.CreateBucketIfNotExists([]byte("TokensBucket"))
 		if err != nil {
 			return err
+		}
+		for i := 0; i < 100; i++ {
+			uid := uuid.NewString()
+			tbuck.Put([]byte(uid), []byte{1})
+			poll.Tokens = append(poll.Tokens, uid)
 		}
 
 		_, err = pbuck.CreateBucketIfNotExists([]byte("VotesBucket"))
@@ -201,11 +207,9 @@ func GetPoll(db *bolt.DB, pollid int32) (query.PollQuestion, error) {
 		tbuck := pbuck.Bucket([]byte("TokensBucket"))
 		c := tbuck.Cursor()
 		for k, v := c.First(); k != nil; k, v = c.Next() {
-			t := query.VoteToken{}
 			if !bytes.Equal(v, []byte{0}) {
-				t.Token = k
+				q.Tokens = append(q.Tokens, string(k))
 			}
-			q.Tokens = append(q.Tokens, &t)
 		}
 
 		// Votes are stored in VotesBucket.
@@ -239,8 +243,8 @@ func GetPoll(db *bolt.DB, pollid int32) (query.PollQuestion, error) {
 
 // SaveToken saves token for specified poll in database.
 //
-// Token is represented as byte array.
-func SaveToken(db *bolt.DB, token []byte, pollid int32) error {
+// Token is represented as string.
+func SaveToken(db *bolt.DB, token string, pollid int32) error {
 	return db.Update(func(tx *bolt.Tx) error {
 		pollsbuck := tx.Bucket([]byte("PollsBucket"))
 
@@ -250,7 +254,7 @@ func SaveToken(db *bolt.DB, token []byte, pollid int32) error {
 		}
 
 		tbuck := pbuck.Bucket([]byte("TokensBucket"))
-		return tbuck.Put(token, []byte{1})
+		return tbuck.Put([]byte(token), []byte{1})
 	})
 }
 
@@ -259,7 +263,7 @@ func SaveToken(db *bolt.DB, token []byte, pollid int32) error {
 // Function returns true if token is present in database and
 // if this token was not used before.
 // If returned error is nil, token is accepted.
-func AcceptToken(db *bolt.DB, token *query.VoteToken, pollid int32) error {
+func AcceptToken(db *bolt.DB, token string, pollid int32) error {
 	return db.Update(func(tx *bolt.Tx) error {
 		pollsbuck := tx.Bucket([]byte("PollsBucket"))
 
@@ -272,7 +276,7 @@ func AcceptToken(db *bolt.DB, token *query.VoteToken, pollid int32) error {
 		tbuck := pbuck.Bucket([]byte("TokensBucket"))
 
 		// We check if requested token exists. If so, v will have one element, else 0.
-		v := tbuck.Get(token.Token)
+		v := tbuck.Get([]byte(token))
 		if v == nil {
 			return fmt.Errorf("No such token")
 		}
@@ -280,7 +284,7 @@ func AcceptToken(db *bolt.DB, token *query.VoteToken, pollid int32) error {
 			return fmt.Errorf("Token was used before")
 		}
 		// After use we remove token from database by setting its value to 0.
-		return tbuck.Put(token.Token, []byte{0})
+		return tbuck.Put([]byte(token), []byte{0})
 	})
 }
 
@@ -352,6 +356,16 @@ func GetSummary(db *bolt.DB, pollid int32) (*query.PollSummary, error) {
 		err := proto.Unmarshal(binschema, s.Schema)
 		if err != nil {
 			return fmt.Errorf("Failed to read schema from database in GetPoll: %w", err)
+		}
+
+		// We want this schema to contain number of true votes for every answer (converted to string).
+		// So for start we want to have there zero value.
+		for _, qa := range s.Schema.Questions {
+			if qa.Type != query.PollSchema_OPEN {
+				for j, _ := range qa.Answers {
+					qa.Answers[j] = "0"
+				}
+			}
 		}
 
 		// Votes are stored in VotesBucket.

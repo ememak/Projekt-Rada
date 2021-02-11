@@ -22,9 +22,11 @@ func TestPollInit(t *testing.T) {
 		s, _ := serverInit("testPI" + strconv.Itoa(i) + ".db")
 		t.Run("Test "+strconv.Itoa(i), func(t *testing.T) {
 			ctx := context.Background()
-			o, err := s.PollInit(ctx, test)
-			if !(proto.Equal(o, out[i].exp_out) && reflect.DeepEqual(err, out[i].exp_err)) {
-				t.Errorf("Output %v, want output %v", o, out[i].exp_out)
+			poll, err := s.PollInit(ctx, test)
+			if !(proto.Equal(poll.Schema, out[i].exp_out.Schema) &&
+				reflect.DeepEqual(poll.Id, out[i].exp_out.Id) &&
+				reflect.DeepEqual(err, out[i].exp_err)) {
+				t.Errorf("Output %v, want output %v", poll, out[i].exp_out)
 				t.Errorf("Error %v, want error %v", err, out[i].exp_err)
 			}
 		})
@@ -38,7 +40,9 @@ func TestPollInit(t *testing.T) {
 			ctx := context.Background()
 			s.PollInit(ctx, test)
 			poll, err := s.PollInit(ctx, test)
-			if !(proto.Equal(poll, out[i].exp_out) && reflect.DeepEqual(err, out[i].exp_err)) {
+			if !(proto.Equal(poll.Schema, out[i].exp_out.Schema) &&
+				reflect.DeepEqual(poll.Id, out[i].exp_out.Id) &&
+				reflect.DeepEqual(err, out[i].exp_err)) {
 				t.Errorf("Output %v, want output %v", poll, out[i].exp_out)
 				t.Errorf("Error %v, want error %v", err, out[i].exp_err)
 			}
@@ -83,7 +87,7 @@ func TestSignBallot(t *testing.T) {
 		t.Run("Test "+strconv.Itoa(i), func(t *testing.T) {
 			ctx := context.Background()
 			s.PollInit(ctx, test.schema)
-			store.SaveToken(s.data, []byte("Good token"), 1)
+			store.SaveToken(s.data, "Good token", 1)
 			se, err := s.SignBallot(ctx, test.envelope)
 			if !reflect.DeepEqual(err, test.exp_err) {
 				t.Errorf("Error %v, want error %v", err, test.exp_err)
@@ -109,7 +113,7 @@ func TestPollVote(t *testing.T) {
 		t.Run("Test "+strconv.Itoa(i), func(t *testing.T) {
 			ctx := context.Background()
 			s.PollInit(ctx, test.schema)
-			store.SaveToken(s.data, []byte("Good token"), 1)
+			store.SaveToken(s.data, "Good token", 1)
 			se, _ := s.SignBallot(ctx, test.envelope)
 			test.votereq.Sign.Sign = se.Sign
 			vr, err := s.PollVote(ctx, test.votereq)
@@ -147,7 +151,7 @@ func TestEntireProtocol(t *testing.T) {
 			t.Errorf("Key parsing failed, error: %v", err)
 			return
 		}
-		err = store.SaveToken(s.data, []byte("Good token"), 1)
+		err = store.SaveToken(s.data, "Good token", 1)
 		if err != nil {
 			t.Errorf("SaveToken failed, error: %v", err)
 			return
@@ -159,7 +163,7 @@ func TestEntireProtocol(t *testing.T) {
 			return
 		}
 		// We are hashing ballot.
-		hash := sha256.Sum256(ballot.Bytes())
+		hash := sha256.Sum256([]byte(ballot.Text(10)))
 		m := new(big.Int).SetBytes(hash[:])
 		// Get random blinding factor.
 		r, err := rand.Int(rand.Reader, key.N)

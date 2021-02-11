@@ -1,37 +1,54 @@
 <div>
-  <form (ngSubmit)="onSubmit()" #vote="ngForm">
-    {{ diagnostic }}
-    <mat-card *ngFor="let qa of questionsList;let i = index">
-      {{qa.question}}
-      <ng-template [ngIf]="qa.type==0">
-        <br>
-        <mat-form-field appearance="fill">
-          <textarea matInput [(ngModel)]="qa.answersList[0]" name="qa-{{i}}-answer"></textarea>
-        </mat-form-field>
-      </ng-template>
-      <ng-template [ngIf]="qa.type==1">
-        <ul>
-          <li *ngFor="let option of qa.optionsList;let j = index;trackBy: trackOption">
-            <mat-checkbox (ngModel)="qa.answersList[j]=='1'?1:0"
-                          (ngModelChange)="qa.answersList[j]=$event?'1':'0'"
-                          name="qa-{{i}}-option-ch-{{j}}">
-              {{option}}
-            </mat-checkbox>
-          </li>
-        </ul>
-      </ng-template>
-      <ng-template [ngIf]="qa.type==2">
-        <mat-radio-group [(ngModel)]="qa.answersList[0]" aria-label="Select an option" name="qa-{{i}}-options">
-        <ul>
-          <li *ngFor="let option of qa.optionsList;let j = index;trackBy: trackOption">
-            <mat-radio-button value="{{j}}" name="qa-{{i}}-option-cl-{{j}}">
-              {{option}}
-            </mat-radio-button>
-          </li>
-        </ul>
-        </mat-radio-group>
-      </ng-template>
-    </mat-card>
-    <button mat-button color="primary">Wyślij ankietę</button>
-  </form>
+  <ng-template [ngIf]="this.pollid">
+    <form (ngSubmit)="onSubmit()" #vote="ngForm">
+      <mat-card *ngFor="let qa of questionsList;let i = index">
+        {{qa.question}}
+        <ng-template [ngIf]="qa.type==0">
+          <br>
+          <mat-form-field appearance="fill">
+            <textarea matInput [(ngModel)]="qa.answersList[0]" name="qa-{{i}}-answer"></textarea>
+          </mat-form-field>
+        </ng-template>
+        <ng-template [ngIf]="qa.type==1">
+          <ul>
+            <li *ngFor="let option of qa.optionsList;let j = index;trackBy: trackOption">
+              <mat-checkbox (ngModel)="qa.answersList[j]=='1'?1:0"
+                            (ngModelChange)="qa.answersList[j]=$event?'1':'0'"
+                            name="qa-{{i}}-option-ch-{{j}}">
+                {{option}}
+              </mat-checkbox>
+            </li>
+          </ul>
+        </ng-template>
+        <ng-template [ngIf]="qa.type==2">
+          <mat-radio-group [(ngModel)]="qa.answersList[0]" aria-label="Select an option" name="qa-{{i}}-options">
+          <ul>
+            <li *ngFor="let option of qa.optionsList;let j = index;trackBy: trackOption">
+              <mat-radio-button value="{{j}}" name="qa-{{i}}-option-cl-{{j}}">
+                {{option}}
+              </mat-radio-button>
+            </li>
+          </ul>
+          </mat-radio-group>
+        </ng-template>
+      </mat-card>
+      <mat-form-field appearance="fill">
+        <mat-label>Token</mat-label>
+        <input matInput [(ngModel)]="token" name="tokeninput">
+      </mat-form-field>
+      <br>
+      <button mat-button color="primary">Wyślij ankietę</button>
+    </form>
+  </ng-template>
+  <ng-template [ngIf]="!this.pollid">
+    <form (ngSubmit)="getPollid()" #vote="ngForm">
+      Na którą ankietę chcesz oddać głos?
+      <br>
+      <mat-form-field appearance="fill">
+        <mat-label>Numer ankiety</mat-label>
+        <input matInput [(ngModel)]="inpid" name="pollidinput">
+      </mat-form-field>
+      <button mat-button color="primary">Przejdź do ankiety</button>
+    </form>
+  </ng-template>
 </div>

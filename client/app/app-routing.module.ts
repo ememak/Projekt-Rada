@@ -7,7 +7,9 @@ import { VoteComponent } from './vote/vote.component';
 const routes: Routes = [
   { path: 'pollinit', component: PollInitComponent },
   { path: 'results', component: ResultsComponent },
-  { path: 'vote', component: VoteComponent }
+  { path: 'results/:pollid', component: ResultsComponent},
+  { path: 'vote', component: VoteComponent },
+  { path: 'vote/:pollid', component: VoteComponent},
 ];
 
 @NgModule({
