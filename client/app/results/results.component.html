@@ -1,63 +1,78 @@
 <div>
-  <form #vote="ngForm">
-    {{ diagnostic }}
-    <mat-card *ngFor="let qa of summary.schema.questionsList;let i = index">
-      {{qa.question}}
-      <ng-template [ngIf]="qa.type==0">
-        <ul>
-          <li *ngFor="let ans of qa.answersList">
-            {{ans}}
-          </li>
-        </ul>
-      </ng-template>
-      <ng-template [ngIf]="qa.type==1">
-        <ul>
-          <li *ngFor="let option of qa.optionsList;let j = index;trackBy: trackOption">
-            <ng-template [ngIf]="qa.answersList[j]==1">
-              {{option}} - {{qa.answersList[j]}} głos
-            </ng-template>
-            <ng-template [ngIf]="qa.answersList[j]>=2 && qa.answersList[j]<=3">
-              {{option}} - {{qa.answersList[j]}} głosy
-            </ng-template>
-            <ng-template [ngIf]="qa.answersList[j]==0 || qa.answersList[j]>=5">
-              {{option}} - {{qa.answersList[j]}} głosów
-            </ng-template>
-          </li>
-          <ng-template [ngIf]="summary.votescount">
-            <google-chart [type]="'ColumnChart'" 
-                          [data]="input[i]" 
-                          [width]="800"
-                          [options]="{legend: {position: 'none'}}"></google-chart>
-          </ng-template>
-        </ul>
-      </ng-template>
-      <ng-template [ngIf]="qa.type==2">
-        <ul>
-          <li *ngFor="let option of qa.optionsList;let j = index;trackBy: trackOption">
-            <ng-template [ngIf]="qa.answersList[j]==1">
-              {{option}} - {{qa.answersList[j]}} głos
-            </ng-template>
-            <ng-template [ngIf]="qa.answersList[j]>=2 && qa.answersList[j]<=3">
-              {{option}} - {{qa.answersList[j]}} głosy
-            </ng-template>
-            <ng-template [ngIf]="qa.answersList[j]==0 || qa.answersList[j]>=5">
-              {{option}} - {{qa.answersList[j]}} głosów
-            </ng-template>
-          </li>
-          <ng-template [ngIf]="summary.votescount">
-            <google-chart [type]="'PieChart'" 
-                          [data]="input[i]" 
-                          [width]="800"></google-chart>
-          </ng-template>
-        </ul>
-      </ng-template>
-    </mat-card>
-    <ng-template [ngIf]="summary.votescount==1">
-      W sumie wysłano {{summary.votescount}} odpowiedź.
-    </ng-template>
-    <ng-template [ngIf]="summary.votescount!=1">
-      W sumie wysłano {{summary.votescount}} odpowiedzi.
-    </ng-template>
-  </form>
+  <ng-template [ngIf]="this.pollid">
+    Wyniki ankiety
+		<form #vote="ngForm">
+		  <mat-card *ngFor="let qa of summary.schema.questionsList;let i = index">
+		    {{qa.question}}
+		    <ng-template [ngIf]="qa.type==0">
+		      <ul>
+		        <ng-template ngFor let-ans [ngForOf]="qa.answersList">
+		          <li *ngIf="ans">
+		            {{ans}}
+		          </li>
+		        </ng-template>
+		      </ul>
+		    </ng-template>
+		    <ng-template [ngIf]="qa.type==1">
+		      <ul>
+		        <li *ngFor="let option of qa.optionsList;let j = index;trackBy: trackOption">
+		          <ng-template [ngIf]="qa.answersList[j]==1">
+		            {{option}} - {{qa.answersList[j]}} głos
+		          </ng-template>
+		          <ng-template [ngIf]="qa.answersList[j]>=2 && qa.answersList[j]<=3">
+		            {{option}} - {{qa.answersList[j]}} głosy
+		          </ng-template>
+		          <ng-template [ngIf]="qa.answersList[j]==0 || qa.answersList[j]>=5">
+		            {{option}} - {{qa.answersList[j]}} głosów
+		          </ng-template>
+		        </li>
+		        <ng-template [ngIf]="summary.votescount">
+		          <google-chart [type]="'ColumnChart'" 
+		                        [data]="input[i]" 
+		                        [width]="800"
+		                        [options]="{legend: {position: 'none'}}"></google-chart>
+		        </ng-template>
+		      </ul>
+		    </ng-template>
+		    <ng-template [ngIf]="qa.type==2">
+		      <ul>
+		        <li *ngFor="let option of qa.optionsList;let j = index;trackBy: trackOption">
+		          <ng-template [ngIf]="qa.answersList[j]==1">
+		            {{option}} - {{qa.answersList[j]}} głos
+		          </ng-template>
+		          <ng-template [ngIf]="qa.answersList[j]>=2 && qa.answersList[j]<=3">
+		            {{option}} - {{qa.answersList[j]}} głosy
+		          </ng-template>
+		          <ng-template [ngIf]="qa.answersList[j]==0 || qa.answersList[j]>=5">
+		            {{option}} - {{qa.answersList[j]}} głosów
+		          </ng-template>
+		        </li>
+		        <ng-template [ngIf]="summary.votescount">
+		          <google-chart [type]="'PieChart'" 
+		                        [data]="input[i]" 
+		                        [width]="800"></google-chart>
+		        </ng-template>
+		      </ul>
+		    </ng-template>
+		  </mat-card>
+		  <ng-template [ngIf]="summary.votescount==1">
+		    W sumie wysłano {{summary.votescount}} odpowiedź.
+		  </ng-template>
+		  <ng-template [ngIf]="summary.votescount!=1">
+		    W sumie wysłano {{summary.votescount}} odpowiedzi.
+		  </ng-template>
+		</form>
+  </ng-template>
+  <ng-template [ngIf]="!this.pollid">
+    <form (ngSubmit)="getPollid()" #vote="ngForm">
+      Której ankiety wyniki chcesz zobaczyć?
+      <br>
+      <mat-form-field appearance="fill">
+        <mat-label>Numer ankiety</mat-label>
+        <input matInput [(ngModel)]="inpid" name="pollidinput">
+      </mat-form-field>
+      <button mat-button color="primary">Przejdź do ankiety</button>
+    </form>
+  </ng-template>
 </div>
 

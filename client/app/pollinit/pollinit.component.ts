@@ -70,8 +70,8 @@ export class PollInitComponent {
           console.log("pollInit.onEnd.message", message.toObject());
           let response = (<PollQuestion> message);
           let tokens = response.getTokensList();
-          this.download("tokeny.txt", tokens);
           let pollid: number = response.getId();
+          this.download("tokeny_" + pollid.toString() + ".txt", tokens);
           this.router.navigate(['/results', pollid]);
         }
         console.log("pollInit.onEnd.trailers", trailers);

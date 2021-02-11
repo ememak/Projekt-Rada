@@ -20,25 +20,7 @@ import * as bigInt from 'big-integer';
   templateUrl: './vote.component.html',
 })
 export class VoteComponent {
-  questionsList: PollSchema.QA.AsObject[]  = [{
-      question: "Pytanie otwarte",
-      optionsList: [],
-      type: PollSchema.QuestionType.OPEN,
-      answersList: [""],
-    },
-    {
-      question: "Pytanie zamknięte",
-      optionsList: ["Opcja 1.", "Opcja 2."],
-      type: PollSchema.QuestionType.CLOSE,
-      answersList: ["", ""],
-    },
-    {
-      question: "Pytanie wielokrotnego wyboru",
-      optionsList: ["Opcja 1.", "Opcja 2."],
-      type: PollSchema.QuestionType.CHECKBOX,
-      answersList: ["", ""],
-    },
-  ];
+  questionsList: PollSchema.QA.AsObject[];
   publickey;
 
   token: string;
@@ -47,9 +29,11 @@ export class VoteComponent {
   r;//BigInteger
 
   pollid: number;
+  inpid: number;
 
   constructor (private route: ActivatedRoute, private router: Router) {
     this.pollid = parseInt(this.route.snapshot.paramMap.get('pollid'));
+    if(!isNaN(this.pollid)){
     let request: GetPollRequest = new GetPollRequest();
     request.setPollid(this.pollid);
     grpc.unary(Query.GetPoll, {
@@ -70,6 +54,11 @@ export class VoteComponent {
         console.log("pollInit.onEnd.trailers", trailers);
       }
     });
+    }
+  }
+
+  getPollid() {
+    this.router.navigate(['/vote', this.inpid]);
   }
 
   trackOption(index: number, option: string) {
