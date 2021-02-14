@@ -6,6 +6,7 @@
         <mat-label>Pytanie</mat-label>
         <input matInput [(ngModel)]="qa.question" name="qa-{{i}}-question">
       </mat-form-field>
+
       <mat-form-field appearance="fill">
         <mat-label>Rodzaj</mat-label>
         <mat-select [(ngModel)]="qa.type" name="qa-{{i}}-type">
@@ -14,6 +15,7 @@
           <mat-option value="2">Zamknięte</mat-option>
         </mat-select>
       </mat-form-field>
+
       <ng-template [ngIf]="qa.type!=0">
         <mat-form-field *ngFor="let option of qa.optionsList;let j = index;trackBy: trackOption" appearance="fill">
           <mat-label>Opcja</mat-label>

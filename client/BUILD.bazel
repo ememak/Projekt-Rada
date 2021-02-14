@@ -2,6 +2,7 @@ load("@npm//@bazel/concatjs:index.bzl", "concatjs_devserver")
 load("@npm//@bazel/typescript:index.bzl", "ts_library")
 load("@npm//html-insert-assets:index.bzl", "html_insert_assets")
 load("//rules:angular_ts_library.bzl", "ng_ts_library")
+load("@build_bazel_rules_nodejs//:index.bzl", "pkg_web")
 
 package(default_visibility = ["//:__subpackages__"])
 
@@ -80,3 +81,16 @@ concatjs_devserver(
     # Tell Bazel to build the sources first
     deps = [":devclient"],
 )
+
+pkg_web(
+    name = "prodapp",
+    srcs = _ASSETS + [
+        "//client/app",
+        ":devclient",
+        ":inject_scripts_for_dev",
+        ":rxjs_umd_modules",
+        # Include polyfills that will be requested by old browsers
+        "@npm//:node_modules/core-js/client/core.min.js",
+    ],
+)
+

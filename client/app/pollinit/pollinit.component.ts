@@ -51,30 +51,20 @@ export class PollInitComponent {
   sendPoll() {
     const schema = new PollSchema();
     for (let qa of this.questionsList){
-      const QA = new PollSchema.QA();
-      QA.setQuestion(qa.question);
-      QA.setType(qa.type as 0 | 1 | 2);
-      QA.setOptionsList(qa.optionsList);
-      QA.setAnswersList(qa.answersList);
-      schema.addQuestions(QA);
+      schema.addQuestions(QAFromObject(qa));
     }
-    let pollid: number;
     grpc.unary(Query.PollInit, {
       request: schema,
       host: host,
       onEnd: res => {
         const { status, statusMessage, headers, message, trailers } = res;
-        console.log("pollInit.onEnd.status", status, statusMessage);
-        console.log("pollInit.onEnd.headers", headers);
         if (status === grpc.Code.OK && message) {
-          console.log("pollInit.onEnd.message", message.toObject());
           let response = (<PollQuestion> message);
           let tokens = response.getTokensList();
           let pollid: number = response.getId();
           this.download("tokeny_" + pollid.toString() + ".txt", tokens);
           this.router.navigate(['/results', pollid]);
         }
-        console.log("pollInit.onEnd.trailers", trailers);
       }
     });
   }
@@ -88,7 +78,15 @@ export class PollInitComponent {
     document.body.appendChild(element);
 
     element.click();
-
     document.body.removeChild(element);
   }
+}
+
+function QAFromObject(qa: PollSchema.QA.AsObject) {
+  const QA = new PollSchema.QA();
+  QA.setQuestion(qa.question);
+  QA.setType(qa.type as 0 | 1 | 2);
+  QA.setOptionsList(qa.optionsList);
+  QA.setAnswersList(qa.answersList);
+  return QA;
 }

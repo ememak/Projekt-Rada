@@ -162,8 +162,13 @@ func main() {
 	grpclog.SetLogger(log.New(os.Stdout, "exampleserver: ", log.LstdFlags))
 
 	wrappedGrpc := grpcweb.WrapServer(s)
+	h := http.FileServer(http.Dir("./client/prodapp"))
 	handler := func(resp http.ResponseWriter, req *http.Request) {
-		wrappedGrpc.ServeHTTP(resp, req)
+		if req.Method == http.MethodOptions {
+			wrappedGrpc.ServeHTTP(resp, req)
+		}
+		h.ServeHTTP(resp, req)
+		//http.ServeFile(resp, req, "client/index.html")
 	}
 	httpServer := http.Server{
 		Addr:    port,
