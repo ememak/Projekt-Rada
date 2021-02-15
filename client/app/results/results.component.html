@@ -2,7 +2,7 @@
   <ng-template [ngIf]="this.pollid">
     Wyniki ankiety
 		<form #vote="ngForm">
-		  <mat-card *ngFor="let qa of summary.schema.questionsList;let i = index">
+		  <mat-card *ngFor="let qa of summary.schema.questionsList;let i = index; trackBy: trackOption">
 		    {{qa.question}}
 		    <ng-template [ngIf]="qa.type==0">
 		      <ul>
@@ -13,6 +13,7 @@
 		        </ng-template>
 		      </ul>
 		    </ng-template>
+
 		    <ng-template [ngIf]="qa.type==1">
 		      <ul>
 		        <li *ngFor="let option of qa.optionsList;let j = index;trackBy: trackOption">
@@ -28,12 +29,13 @@
 		        </li>
 		        <ng-template [ngIf]="summary.votescount">
 		          <google-chart [type]="'ColumnChart'" 
-		                        [data]="input[i]" 
+		                        [data]="graphsInput[i]" 
 		                        [width]="800"
 		                        [options]="{legend: {position: 'none'}}"></google-chart>
 		        </ng-template>
 		      </ul>
 		    </ng-template>
+
 		    <ng-template [ngIf]="qa.type==2">
 		      <ul>
 		        <li *ngFor="let option of qa.optionsList;let j = index;trackBy: trackOption">
@@ -49,7 +51,7 @@
 		        </li>
 		        <ng-template [ngIf]="summary.votescount">
 		          <google-chart [type]="'PieChart'" 
-		                        [data]="input[i]" 
+		                        [data]="graphsInput[i]" 
 		                        [width]="800"></google-chart>
 		        </ng-template>
 		      </ul>
@@ -63,6 +65,7 @@
 		  </ng-template>
 		</form>
   </ng-template>
+
   <ng-template [ngIf]="!this.pollid">
     <form (ngSubmit)="getPollid()" #vote="ngForm">
       Której ankiety wyniki chcesz zobaczyć?

@@ -20,6 +20,7 @@ ng_ts_library(
         "//query:query_ts_proto",
         "//query:query_ts_grpc_web",
         ":host",
+        ":proto_parsing",
         "@npm//@angular/core",
         "@npm//@angular/forms",
         "@npm//@angular/material",
@@ -38,5 +39,12 @@ ng_ts_library(
 ts_library(
     name = "host",
     srcs = ["host.ts"],
+    tsconfig = "//:tsconfig.json",
+)
+
+ts_library(
+    name = "proto_parsing",
+    srcs = ["proto_parsing.ts"],
+    deps = ["//query:query_ts_proto"],
     tsconfig = "//:tsconfig.json",
 )

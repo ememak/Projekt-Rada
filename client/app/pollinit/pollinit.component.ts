@@ -4,6 +4,7 @@ import { Router } from '@angular/router';
 import { grpc } from '@improbable-eng/grpc-web';
 import { Query } from "Projekt_Rada/query/query_pb_service";
 import { PollQuestion, PollSchema } from "Projekt_Rada/query/query_pb";
+import { QAListToSchema } from "../proto_parsing";
 import { host } from '../host';
 
 @Component({
@@ -40,8 +41,6 @@ export class PollInitComponent {
     return index;
   }
 
-  get diagnostic() { return JSON.stringify(this.questionsList); }
-
   onSubmit() {
     if (confirm('Czy chcesz wysłać ankietę?')) {
       this.sendPoll();
@@ -49,10 +48,7 @@ export class PollInitComponent {
   }
 
   sendPoll() {
-    const schema = new PollSchema();
-    for (let qa of this.questionsList){
-      schema.addQuestions(QAFromObject(qa));
-    }
+    const schema: PollSchema = QAListToSchema(this.questionsList);
     grpc.unary(Query.PollInit, {
       request: schema,
       host: host,
@@ -80,13 +76,7 @@ export class PollInitComponent {
     element.click();
     document.body.removeChild(element);
   }
+
+  get diagnostic() { return JSON.stringify(this.questionsList); }
 }
 
-function QAFromObject(qa: PollSchema.QA.AsObject) {
-  const QA = new PollSchema.QA();
-  QA.setQuestion(qa.question);
-  QA.setType(qa.type as 0 | 1 | 2);
-  QA.setOptionsList(qa.optionsList);
-  QA.setAnswersList(qa.answersList);
-  return QA;
-}

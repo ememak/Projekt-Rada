@@ -9,17 +9,19 @@
             <textarea matInput [(ngModel)]="qa.answersList[0]" name="qa-{{i}}-answer"></textarea>
           </mat-form-field>
         </ng-template>
+
         <ng-template [ngIf]="qa.type==1">
           <ul>
             <li *ngFor="let option of qa.optionsList;let j = index;trackBy: trackOption">
-              <mat-checkbox (ngModel)="qa.answersList[j]=='1'?1:0"
-                            (ngModelChange)="qa.answersList[j]=$event?'1':'0'"
+              <mat-checkbox (ngModel)="qa.answersList[j]=='true'?true:false"
+                            (ngModelChange)="qa.answersList[j]=$event?'true':'false'"
                             name="qa-{{i}}-option-ch-{{j}}">
                 {{option}}
               </mat-checkbox>
             </li>
           </ul>
         </ng-template>
+
         <ng-template [ngIf]="qa.type==2">
           <mat-radio-group [(ngModel)]="qa.answersList[0]" aria-label="Select an option" name="qa-{{i}}-options">
           <ul>
@@ -32,6 +34,7 @@
           </mat-radio-group>
         </ng-template>
       </mat-card>
+
       <mat-form-field appearance="fill">
         <mat-label>Token</mat-label>
         <input matInput [(ngModel)]="token" name="tokeninput">
@@ -40,6 +43,7 @@
       <button mat-button color="primary">Wyślij ankietę</button>
     </form>
   </ng-template>
+
   <ng-template [ngIf]="!this.pollid">
     <form (ngSubmit)="getPollid()" #vote="ngForm">
       Na którą ankietę chcesz oddać głos?

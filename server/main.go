@@ -10,6 +10,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strings"
 
 	"github.com/ememak/Projekt-Rada/bsign"
 	"github.com/ememak/Projekt-Rada/query"
@@ -164,10 +165,11 @@ func main() {
 	wrappedGrpc := grpcweb.WrapServer(s)
 	h := http.FileServer(http.Dir("./client/prodapp"))
 	handler := func(resp http.ResponseWriter, req *http.Request) {
-		if req.Method == http.MethodOptions {
+		if strings.Contains(req.URL.Path, "query.Query") {
 			wrappedGrpc.ServeHTTP(resp, req)
+		} else {
+			h.ServeHTTP(resp, req)
 		}
-		h.ServeHTTP(resp, req)
 		//http.ServeFile(resp, req, "client/index.html")
 	}
 	httpServer := http.Server{
