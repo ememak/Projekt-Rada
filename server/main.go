@@ -170,13 +170,12 @@ func main() {
 		} else {
 			h.ServeHTTP(resp, req)
 		}
-		//http.ServeFile(resp, req, "client/index.html")
 	}
 	httpServer := http.Server{
 		Addr:    port,
 		Handler: http.HandlerFunc(handler),
 	}
-	fmt.Printf("%v\n", grpcweb.ListGRPCResources(s))
+	fmt.Printf("Server listening on http://localhost" + port + "\n")
 	err = httpServer.ListenAndServe()
 	if err != nil {
 		fmt.Printf("Error while launching server: %v\n", err)
