@@ -93,6 +93,7 @@ rollup_bundle(
         ":main.prod.ts": "index",
     },
     output_dir = True,
+    link_workspace_root = True,
     deps = [
         ":client",
         "@npm//@rollup/plugin-commonjs",
