@@ -150,6 +150,15 @@ func serverInit(dbfilename string) (*server, error) {
 	return s, err
 }
 
+func stringContainSomeElement(s string, match []string) bool {
+	for _, v := range match {
+		if strings.Contains(s, v) {
+			return true
+		}
+	}
+	return false
+}
+
 func main() {
 	s := grpc.NewServer()
 	service, err := serverInit("data.db")
@@ -168,6 +177,10 @@ func main() {
 		if strings.Contains(req.URL.Path, "query.Query") {
 			wrappedGrpc.ServeHTTP(resp, req)
 		} else {
+			subpages := []string{"pollinit", "vote", "results"}
+			if stringContainSomeElement(req.URL.Path, subpages) {
+				req.URL.Path = "/"
+			}
 			h.ServeHTTP(resp, req)
 		}
 	}

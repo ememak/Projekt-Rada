@@ -45,7 +45,7 @@ _ASSETS = [
 
 html_insert_assets(
     name = "inject_scripts_for_dev",
-    outs = ["index.html"],
+    outs = ["dev/index.html"],
     args = [
         "--html=$(execpath //client:index.dev.html)",
         "--out=$@",
@@ -64,8 +64,8 @@ html_insert_assets(
 # This scales really well for massive codebases.
 concatjs_devserver(
     name = "devserver",
-    # Serve src/example/index.html at /index.html
-    # additional_root_paths = ["src/example"],
+    # Serve dev/index.html at /index.html
+    additional_root_paths = ["Projekt_Rada/client/dev"],
     # Run the program from the development version of the main
     entry_module = "Projekt_Rada/client/main.dev",
     # These scripts will be included in the JS bundle after require.js
@@ -128,16 +128,21 @@ terser_minified(
     src = ":bundle-es5",
 )
 
+_PROD_ASSETS = [
+    "@npm//:node_modules/zone.js/dist/zone.min.js",
+    "@npm//:node_modules/@angular/material/prebuilt-themes/indigo-pink.css",
+]
+
 html_insert_assets(
     name = "inject_scripts_for_prod",
-    outs = ["client/index.html"],
+    outs = ["index.html"],
     args = [
         "--html=$(execpath //client:index.prod.html)",
         "--out=$@",
         "--roots=. $(RULEDIR)",
         "--assets",
-    ] + ["$(execpath %s)" % s for s in _ASSETS],
-    data = ["//client:index.prod.html"] + _ASSETS,
+    ] + ["$(execpath %s)" % s for s in _PROD_ASSETS],
+    data = ["//client:index.prod.html"] + _PROD_ASSETS,
 )
 
 NODE_PACKAGES = [

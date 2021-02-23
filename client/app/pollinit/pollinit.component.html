@@ -4,7 +4,6 @@
       Nowa ankieta
     </h1>
     <mat-card *ngFor="let qa of questionsList;let i = index">
-      <div class="centered-block">
         <mat-form-field appearance="fill">
           <mat-label>Pytanie</mat-label>
           <input matInput [(ngModel)]="qa.question" name="qa-{{i}}-question">
@@ -26,7 +25,6 @@
           </mat-form-field>
           <button mat-button color="primary" type="button" (click)="addOption(index = i)">Dodaj opcję odpowiedzi</button>
         </ng-template>
-      </div>
     </mat-card>
     <div class="centered-block">
       <button mat-button color="primary" type="button" (click)="addQuestion()">Dodaj pytanie</button>

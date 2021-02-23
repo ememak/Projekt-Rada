@@ -30,8 +30,8 @@ export class VoteComponent {
 
   token: string;
 
-  ballot;//BigInteger
-  r;//BigInteger
+  ballot: bigInt.BigInteger;
+  r: bigInt.BigInteger;
 
   pollid: number;
   inpid: number;
@@ -84,7 +84,7 @@ export class VoteComponent {
           })
         }
       }
-      console.log(JSON.stringify(this.questionsList));
+
       let envelope = this.calculateEnvelope()
       let request: EnvelopeToSign = toEnvelope(envelope.toString(16), this.pollid, this.token);
     
@@ -126,18 +126,18 @@ export class VoteComponent {
 
   calculateEnvelope(){
     // Generate ballot to be signed.
-    let N = bigInt(this.publickey.n.toString())
-    let e = bigInt(this.publickey.e.toString()) // Should be always 65537
-    this.ballot = bigInt.randBetween(bigInt("2"), N);
+    let N = bigInt.call({}, this.publickey.n.toString())
+    let e = bigInt.call({}, this.publickey.e.toString()) // Should be always 65537
+    this.ballot = bigInt.randBetween(bigInt.call({}, "2"), N);
 
     // We are hashing ballot.
     let sha256 = md.sha256.create();
     sha256.update(this.ballot.toString())
     let hash = sha256.digest().toHex()
-    let m = bigInt(hash, 16)
+    let m = bigInt.call({}, hash, 16)
 
     // Get random blinding factor.
-    this.r = bigInt.randBetween(bigInt("2"), N);
+    this.r = bigInt.randBetween(bigInt.call({}, "2"), N);
 
     // We want to send m*r^e mod N to server.
     let re = this.r.modPow(e, N)
@@ -149,8 +149,8 @@ export class VoteComponent {
 
   calculateSign(signedEnvelope: string | Uint8Array) {
     // Having (m^d)*r mod N we are removing blinding factor r,
-    let N = bigInt(this.publickey.n.toString())
-    let sm = bigInt(base64ToHex(signedEnvelope), 16)
+    let N = bigInt.call({}, this.publickey.n.toString())
+    let sm = bigInt.call({}, base64ToHex(signedEnvelope), 16)
     let revr = this.r.modInv(N)
     let smrevr = sm.multiply(revr)
     // Now we can calculate second part of sign.
