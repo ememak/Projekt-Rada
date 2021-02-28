@@ -14,7 +14,9 @@ import { host } from '../host';
 export class ResultsComponent {
   summary: PollSummary.AsObject;
 
-  input: any[] = [];
+  // Each entry in this array is an input for graph regarding question with matching index.
+  // Graph input is array of arrays consisting of at pair [key, value].
+  graphsInput: any[] = [];
 
   pollid: number;
   inpid: number;
@@ -22,29 +24,21 @@ export class ResultsComponent {
   constructor (private route: ActivatedRoute, private router: Router) {
     this.pollid = parseInt(this.route.snapshot.paramMap.get('pollid'));
     if(!isNaN(this.pollid)){
-    let request: SummaryRequest = new SummaryRequest();
-    request.setPollid(this.pollid);
-    grpc.unary(Query.GetSummary, {
-      request: request,
-      host: host,
-      onEnd: res => {
-        const { status, statusMessage, headers, message, trailers } = res;
-        console.log("pollInit.onEnd.status", status, statusMessage);
-        console.log("pollInit.onEnd.headers", headers);
-        if (status === grpc.Code.OK && message) {
-          console.log("pollInit.onEnd.message", message.toObject());
-          this.summary = (<PollSummary>message).toObject()
-          for (let qa of this.summary.schema.questionsList) {
-            let r = [];
-            for(let [i, opt] of qa.optionsList.entries()) {
-              r.push([opt, parseInt(qa.answersList[i])]);
-            }
-            this.input.push(r)
+      let request: SummaryRequest = new SummaryRequest();
+      request.setPollid(this.pollid);
+
+      grpc.unary(Query.GetSummary, {
+        request: request,
+        host: host,
+        onEnd: res => {
+          const { status, statusMessage, headers, message, trailers } = res;
+          if (status === grpc.Code.OK && message) {
+            this.summary = (<PollSummary>message).toObject()
+            this.getGraphsInput()
           }
         }
-        console.log("pollInit.onEnd.trailers", trailers);
-      }
-    });}
+      });
+    }
   }
 
   getPollid() {
@@ -55,7 +49,18 @@ export class ResultsComponent {
     return index;
   }
 
-  get diagnostic() { return JSON.stringify(this.summary.schema); }
-  
+  getGraphsInput() {
+    for (let qa of this.summary.schema.questionsList) {
+      let graphInp = []; 
+      for(let [i, opt] of qa.optionsList.entries()) {
+        graphInp.push([opt, parseInt(qa.answersList[i])]);
+      }
+      this.graphsInput.push(graphInp)
+    }
+    console.log(this.summary)
+  }
+
+  get diagnostic() { return JSON.stringify(this.summary); }
+
   onSubmit() {}
 }

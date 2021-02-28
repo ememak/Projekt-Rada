@@ -1,28 +1,34 @@
 <div>
   <form (ngSubmit)="onSubmit()" #pollInit="ngForm">
-    Nowa ankieta
+    <h1>
+      Nowa ankieta
+    </h1>
     <mat-card *ngFor="let qa of questionsList;let i = index">
-      <mat-form-field appearance="fill">
-        <mat-label>Pytanie</mat-label>
-        <input matInput [(ngModel)]="qa.question" name="qa-{{i}}-question">
-      </mat-form-field>
-      <mat-form-field appearance="fill">
-        <mat-label>Rodzaj</mat-label>
-        <mat-select [(ngModel)]="qa.type" name="qa-{{i}}-type">
-          <mat-option value="0">Otwarte</mat-option>
-          <mat-option value="1">Wielokrotnego wyboru</mat-option>
-          <mat-option value="2">Zamknięte</mat-option>
-        </mat-select>
-      </mat-form-field>
-      <ng-template [ngIf]="qa.type!=0">
-        <mat-form-field *ngFor="let option of qa.optionsList;let j = index;trackBy: trackOption" appearance="fill">
-          <mat-label>Opcja</mat-label>
-          <input matInput [(ngModel)]="qa.optionsList[j]" name="qa-{{i}}-question-{{j}}-option">
+        <mat-form-field appearance="fill">
+          <mat-label>Pytanie</mat-label>
+          <input matInput [(ngModel)]="qa.question" name="qa-{{i}}-question">
         </mat-form-field>
-        <button mat-button color="primary" type="button" (click)="addOption(index = i)">Dodaj opcję odpowiedzi</button>
-      </ng-template>
+
+        <mat-form-field appearance="fill">
+          <mat-label>Rodzaj</mat-label>
+          <mat-select [(ngModel)]="qa.type" name="qa-{{i}}-type">
+            <mat-option value="0">Otwarte</mat-option>
+            <mat-option value="1">Wielokrotnego wyboru</mat-option>
+            <mat-option value="2">Zamknięte</mat-option>
+          </mat-select>
+        </mat-form-field>
+
+        <ng-template [ngIf]="qa.type!=0">
+          <mat-form-field *ngFor="let option of qa.optionsList;let j = index;trackBy: trackOption" appearance="fill">
+            <mat-label>Opcja</mat-label>
+            <input matInput [(ngModel)]="qa.optionsList[j]" name="qa-{{i}}-question-{{j}}-option">
+          </mat-form-field>
+          <button mat-button color="primary" type="button" (click)="addOption(index = i)">Dodaj opcję odpowiedzi</button>
+        </ng-template>
     </mat-card>
-    <button mat-button color="primary" type="button" (click)="addQuestion()">Dodaj pytanie</button>
-    <button mat-button color="primary">Wyślij ankietę</button>
+    <div class="centered-block">
+      <button mat-button color="primary" type="button" (click)="addQuestion()">Dodaj pytanie</button>
+      <button mat-button color="primary">Wyślij ankietę</button>
+    </div>
   </form>
 </div>

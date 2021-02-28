@@ -1,14 +1,19 @@
+load("@npm//@babel/cli:index.bzl", "babel")
 load("@npm//@bazel/concatjs:index.bzl", "concatjs_devserver")
+load("@npm//@bazel/rollup:index.bzl", "rollup_bundle")
+load("@npm//@bazel/terser:index.bzl", "terser_minified")
 load("@npm//@bazel/typescript:index.bzl", "ts_library")
 load("@npm//html-insert-assets:index.bzl", "html_insert_assets")
 load("//rules:angular_ts_library.bzl", "ng_ts_library")
+load("@build_bazel_rules_nodejs//:index.bzl", "pkg_web")
 
 package(default_visibility = ["//:__subpackages__"])
 
 ng_ts_library(
-    name = "devclient",
+    name = "client",
     srcs = [
         "main.dev.ts",
+        "main.prod.ts",
     ],
     tsconfig = "//:tsconfig.json",
     deps = [
@@ -40,7 +45,7 @@ _ASSETS = [
 
 html_insert_assets(
     name = "inject_scripts_for_dev",
-    outs = ["index.html"],
+    outs = ["dev/index.html"],
     args = [
         "--html=$(execpath //client:index.dev.html)",
         "--out=$@",
@@ -59,8 +64,8 @@ html_insert_assets(
 # This scales really well for massive codebases.
 concatjs_devserver(
     name = "devserver",
-    # Serve src/example/index.html at /index.html
-    # additional_root_paths = ["src/example"],
+    # Serve dev/index.html at /index.html
+    additional_root_paths = ["Projekt_Rada/client/dev"],
     # Run the program from the development version of the main
     entry_module = "Projekt_Rada/client/main.dev",
     # These scripts will be included in the JS bundle after require.js
@@ -78,5 +83,83 @@ concatjs_devserver(
         ":inject_scripts_for_dev",
     ],
     # Tell Bazel to build the sources first
-    deps = [":devclient"],
+    deps = [":client"],
 )
+
+rollup_bundle(
+    name = "bundle-es2015",
+    config_file = "rollup.config.js",
+    entry_points = {
+        ":main.prod.ts": "index",
+    },
+    output_dir = True,
+    link_workspace_root = True,
+    deps = [
+        ":client",
+        "@npm//@rollup/plugin-commonjs",
+        "@npm//@rollup/plugin-node-resolve",
+    ],
+)
+
+babel(
+    name = "bundle-es5",
+    args = [
+        "$(execpath :bundle-es2015)",
+        "--no-babelrc",
+        "--source-maps",
+        "--presets=@babel/preset-env",
+        "--out-dir",
+        "$(@D)",
+    ],
+    data = [
+        ":bundle-es2015",
+        "@npm//@babel/preset-env",
+    ],
+    output_dir = True,
+)
+
+terser_minified(
+    name = "bundle-es2015.min",
+    src = ":bundle-es2015",
+)
+
+terser_minified(
+    name = "bundle-es5.min",
+    src = ":bundle-es5",
+)
+
+_PROD_ASSETS = [
+    "@npm//:node_modules/zone.js/dist/zone.min.js",
+    "@npm//:node_modules/@angular/material/prebuilt-themes/indigo-pink.css",
+]
+
+html_insert_assets(
+    name = "inject_scripts_for_prod",
+    outs = ["index.html"],
+    args = [
+        "--html=$(execpath //client:index.prod.html)",
+        "--out=$@",
+        "--roots=. $(RULEDIR)",
+        "--assets",
+    ] + ["$(execpath %s)" % s for s in _PROD_ASSETS],
+    data = ["//client:index.prod.html"] + _PROD_ASSETS,
+)
+
+NODE_PACKAGES = [
+    "@npm//node-forge",
+    "@npm//big-integer",
+    "@npm//google-protobuf",
+    "@npm//@improbable-eng/grpc-web",
+]
+
+pkg_web(
+    name = "prodapp",
+    srcs = _ASSETS + NODE_PACKAGES + [
+        ":bundle-es2015.min",
+        ":bundle-es5.min",
+        "//query:query_ts_proto",
+        "//query:query_ts_grpc_web",
+        ":inject_scripts_for_prod",
+    ],
+)
+

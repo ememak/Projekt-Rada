@@ -22,6 +22,13 @@ go_library(
 
 go_binary(
     name = "server",
+    data = ["//client:prodapp"],
+    embed = [":go_default_library"],
+    visibility = ["//visibility:public"],
+)
+
+go_binary(
+    name = "devserver",
     embed = [":go_default_library"],
     visibility = ["//visibility:public"],
 )

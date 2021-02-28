@@ -10,6 +10,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strings"
 
 	"github.com/ememak/Projekt-Rada/bsign"
 	"github.com/ememak/Projekt-Rada/query"
@@ -149,6 +150,15 @@ func serverInit(dbfilename string) (*server, error) {
 	return s, err
 }
 
+func stringContainSomeElement(s string, match []string) bool {
+	for _, v := range match {
+		if strings.Contains(s, v) {
+			return true
+		}
+	}
+	return false
+}
+
 func main() {
 	s := grpc.NewServer()
 	service, err := serverInit("data.db")
@@ -162,14 +172,23 @@ func main() {
 	grpclog.SetLogger(log.New(os.Stdout, "exampleserver: ", log.LstdFlags))
 
 	wrappedGrpc := grpcweb.WrapServer(s)
+	h := http.FileServer(http.Dir("./client/prodapp"))
 	handler := func(resp http.ResponseWriter, req *http.Request) {
-		wrappedGrpc.ServeHTTP(resp, req)
+		if strings.Contains(req.URL.Path, "query.Query") {
+			wrappedGrpc.ServeHTTP(resp, req)
+		} else {
+			subpages := []string{"pollinit", "vote", "results"}
+			if stringContainSomeElement(req.URL.Path, subpages) {
+				req.URL.Path = "/"
+			}
+			h.ServeHTTP(resp, req)
+		}
 	}
 	httpServer := http.Server{
 		Addr:    port,
 		Handler: http.HandlerFunc(handler),
 	}
-	fmt.Printf("%v\n", grpcweb.ListGRPCResources(s))
+	fmt.Printf("Server listening on http://localhost" + port + "\n")
 	err = httpServer.ListenAndServe()
 	if err != nil {
 		fmt.Printf("Error while launching server: %v\n", err)
