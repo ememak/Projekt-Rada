@@ -57,7 +57,6 @@ export class ResultsComponent {
       }
       this.graphsInput.push(graphInp)
     }
-    console.log(this.summary)
   }
 
   get diagnostic() { return JSON.stringify(this.summary); }

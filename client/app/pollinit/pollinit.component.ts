@@ -32,7 +32,6 @@ export class PollInitComponent {
   }
 
   addOption(index: number) {
-    console.log(index)
     this.questionsList[index].optionsList.push("");
     this.questionsList[index].answersList.push("");
   }

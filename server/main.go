@@ -22,9 +22,10 @@ import (
 )
 
 // In constants we store connection data.
-const (
-	port = ":12345"
-)
+/*const (
+	//port = ":12345"
+	port = (os.Getenv("PORT") ? (":" + os.Getenv("PORT")) : (":12345")),
+)*/
 
 // Server type contains server implemented in query/query.proto,
 // data used for cryptography and usage of polls.
@@ -160,6 +161,12 @@ func stringContainSomeElement(s string, match []string) bool {
 }
 
 func main() {
+	port := ""
+	if os.Getenv("PORT") != "" {
+		port = ":" + os.Getenv("PORT")
+	} else {
+		port = ":12345"
+	}
 	s := grpc.NewServer()
 	service, err := serverInit("data.db")
 	if err != nil {

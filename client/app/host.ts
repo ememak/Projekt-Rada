@@ -1,1 +1,1 @@
-export const host = "http://localhost:12345";
+export const host = "https://" + window.location.host;
