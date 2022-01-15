@@ -14,7 +14,7 @@
         "big-integer": "1.6.40",
         "google-protobuf": "3.13.0",
         "@types/node-forge": "0.9.7",
-        "node-forge": "0.10.0",
+        "node-forge": "1.0.0",
         "rxjs": "6.5.3",
         "tslib": "2.0.0",
         "zone.js": "0.10.3"
